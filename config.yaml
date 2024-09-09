@@ -1,0 +1,4 @@
+monitor_dir: "C:\\path\\to\\monitored\\directory"
+check_frequency: "1m"
+api_endpoint: "https://api.example.com/report"
+osquery_socket: "\\\\.\\pipe\\osquery.em"
