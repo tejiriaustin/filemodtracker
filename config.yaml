@@ -1,4 +1,4 @@
-monitor_dir: "C:\\path\\to\\monitored\\directory"
+monitor_dir: "/Users/tejiriodiase/GolangProjects/github/tejiriaustin"
 check_frequency: "1m"
-api_endpoint: "https://api.example.com/report"
-osquery_socket: "\\\\.\\pipe\\osquery.em"
+port: "8081"
+osquery_socket: "/var/osquery/osquery.em"

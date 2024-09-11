@@ -1,0 +1,18 @@
+services:
+  service:
+    image: filemodtracker-windows
+    command: daemon
+    volumes:
+      - C:\path\to\monitored\directory:C:\monitored
+
+  ui:
+    image: filemodtracker-windows
+    command: ui
+    ports:
+      - "8081:8081"
+
+  api:
+    image: filemodtracker-windows
+    command: clients
+    ports:
+      - "8080:8080"

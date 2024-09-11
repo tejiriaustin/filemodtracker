@@ -1,20 +1,24 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
+// Copyright © 2024 NAME HERE tejiriaustin123@gmail.com
+
 package cmd
 
 import (
 	"fmt"
-	"github.com/tejiriaustin/savannah-assessment/config"
-	"os"
-
+	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/tejiriaustin/savannah-assessment/daemon"
+	"github.com/tejiriaustin/savannah-assessment/db"
+	"github.com/tejiriaustin/savannah-assessment/server"
+	"log"
+	"os"
+
+	"github.com/tejiriaustin/savannah-assessment/config"
 )
 
 var (
 	cfgFile string
-	s       service.Service
+	d       *daemon.Daemon
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -26,31 +30,71 @@ var rootCmd = &cobra.Command{
 
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Start the File Modification Tracker service",
+	Short: "Start the File Modification Tracker daemon",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.GetConfig()
-		fmt.Printf("Starting File Modification Tracker...\n")
-		fmt.Printf("Monitoring directory: %s\n", cfg.MonitorDir)
-		fmt.Printf("Check frequency: %s\n", cfg.CheckFrequency)
-		fmt.Printf("API endpoint: %s\n", cfg.APIEndpoint)
-		fmt.Printf("Osquery socket: %s\n", cfg.OsquerySocket)
+
+		dbClient, err := db.NewClient(cfg.DataDir)
+		if err != nil {
+			log.Fatalf("Failed to create database client: %v", err)
+		}
+		defer dbClient.Close()
+
+		cmdChan := make(chan string, 100) // Buffer for 100 commands
+
+		d, err = daemon.New(cfg, dbClient, cmdChan)
+		if err != nil {
+			log.Fatalf("Failed to create daemon: %v", err)
+		}
+
+		go func() {
+			if err := d.Start(); err != nil {
+				log.Fatalf("Failed to start daemon: %v", err)
+			}
+		}()
+
+		s := server.New(cfg)
+		s.Start(dbClient, cmdChan)
+
+		// The server.Start() method will block until the server is shut down
+		// After the server is shut down, we should also stop the daemon
+		if err := d.Stop(); err != nil {
+			log.Printf("Failed to stop daemon: %v", err)
+		}
 	},
 }
 
 var stopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "Stop the File Modification Tracker service",
+	Short: "Stop the File Modification Tracker daemon",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Stopping File Modification Tracker service...")
-		// Implement service stop logic here
+		cfg := config.GetConfig()
+		dbClient, err := db.NewClient(cfg.DataDir)
+		if err != nil {
+			fmt.Printf("Error creating database client: %v\n", err)
+			os.Exit(1)
+		}
+
+		d, err = daemon.New(cfg, dbClient, nil)
+		if err != nil {
+			fmt.Printf("Error creating daemon: %v\n", err)
+			os.Exit(1)
+		}
+
+		err = d.Stop()
+		if err != nil {
+			fmt.Printf("Error stopping daemon: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Daemon stopped successfully.")
 	},
 }
 
 var statusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Check the status of the File Modification Tracker service",
+	Short: "Check the status of the File Modification Tracker daemon",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Checking File Modification Tracker service status...")
+		fmt.Println("Checking File Modification Tracker daemon status...")
 		// Implement status check logic here
 	},
 }
@@ -91,7 +135,9 @@ var configSetCmd = &cobra.Command{
 }
 
 func init() {
-	cobra.OnInitialize(config.InitConfig)
+	validator := validator.New()
+
+	cobra.OnInitialize(config.InitConfig(validator))
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
 
@@ -101,28 +147,6 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configViewCmd)
 	configCmd.AddCommand(configSetCmd)
-
-	var err error
-	s, err = NewService()
-	if err != nil {
-		fmt.Printf("Failed to create service: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func initConfig() {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		viper.AddConfigPath(".")
-		viper.SetConfigName("config")
-	}
-
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	}
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

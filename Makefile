@@ -5,7 +5,7 @@ BINARY_NAME=filemodtracker
 all: build
 
 build:
-	go build -ldflags="-H windowsgui" -o $(BINARY_NAME) main.go
+	go build -o $(BINARY_NAME) main.go
 
 clean:
 	go clean modcache
