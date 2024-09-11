@@ -1,60 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product Id="*"
-           Name="File Modification Tracker"
+           Name="MyApp Installer"
            Language="1033"
            Version="1.0.0.0"
            Manufacturer="YourCompany"
            UpgradeCode="PUT-GUID-HERE">
-    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
 
-    <MajorUpgrade DowngradeErrorMessage="A newer version of filemodtracker is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
-    <Feature Id="ProductFeature" Title="FileModTracker" Level="1">
+    <Feature Id="ProductFeature" Title="My Application" Level="1">
       <ComponentGroupRef Id="ProductComponents" />
     </Feature>
-  </Product>
 
-  <Fragment>
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder">
-        <Directory Id="INSTALLFOLDER" Name="FileModTracker" />
+        <Directory Id="INSTALLFOLDER" Name="MyApp" />
       </Directory>
     </Directory>
-  </Fragment>
 
-  <Fragment>
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-      <Component Id="ProductComponent" Guid="*">
-        <File Id="FileModTrackerEXE" Name="filemodtracker.exe" Source="filemodtracker.exe" KeyPath="yes" />
-        <File Id="ConfigFile" Name="config.yaml" Source="config.yaml" />
-
-        <!-- Create Start Menu shortcut -->
-        <Shortcut Id="StartMenuShortcut"
-                  Name="File Modification Tracker"
-                  Directory="ProgramMenuFolder"
-                  WorkingDirectory="INSTALLFOLDER"
-                  Advertise="yes"
-                  Icon="FileModTrackerIcon.exe"
-                  IconIndex="0" />
-
-        <!-- Create Desktop shortcut -->
-        <Shortcut Id="DesktopShortcut"
-                  Name="File Modification Tracker"
-                  Directory="DesktopFolder"
-                  WorkingDirectory="INSTALLFOLDER"
-                  Advertise="yes"
-                  Icon="FileModTrackerIcon.exe"
-                  IconIndex="0" />
-
-        <!-- Add/Remove Programs Icon -->
-        <Property Id="ARPPRODUCTICON" Value="FileModTrackerIcon.exe" />
+      <Component Id="ApplicationFiles" Guid="*">
+        <File Id="FileModTracker" Name="filemodtracker.exe" Source="filemodtracker.exe" KeyPath="yes" />
+        <File Id="SQLiteDLL" Name="sqlite3.dll" Source="sqlite3.dll" />
+        <File Id="OsquerydEXE" Name="osqueryd.exe" Source="osqueryd.exe" />
+        <File Id="OsqueryiEXE" Name="osqueryi.exe" Source="osqueryi.exe" />
       </Component>
     </ComponentGroup>
-  </Fragment>
-
-  <Fragment>
-    <Icon Id="FileModTrackerIcon.exe" SourceFile="filemodtracker.exe" />
-  </Fragment>
+  </Product>
 </Wix>

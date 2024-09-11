@@ -7,7 +7,7 @@ set PROJECT_PATH=.
 
 REM Build the Go binary
 echo Building Go binary...
-go build -o filemodtracker.exe
+make run-service
 
 REM Create MSI
 echo Creating MSI...

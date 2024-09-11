@@ -12,10 +12,10 @@ clean:
 	rm -f $(BINARY_NAME)
 
 run: build
-	./$(BINARY_NAME) service & ./$(BINARY_NAME) ui &
+	./$(BINARY_NAME) daemon & ./$(BINARY_NAME) ui &
 
 run-service: build
-	./$(BINARY_NAME) service
+	./$(BINARY_NAME) daemon
 
 run-ui: build
 	./$(BINARY_NAME) ui
