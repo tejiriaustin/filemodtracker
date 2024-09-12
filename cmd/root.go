@@ -23,7 +23,7 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "savannah-assessment",
+	Use:   "filemodtracker",
 	Short: "File Modification Tracker",
 	Long:  `A CLI tool to track and record modifications to files in a specified directory.`,
 }

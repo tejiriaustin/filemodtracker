@@ -25,15 +25,15 @@ func init() {
 func startDaemonService(cmd *cobra.Command, args []string) {
 	cfg := config.GetConfig()
 
-	if err := clients.EnsureOsqueryRunning(); err != nil {
-		log.Fatalf("Failed to ensure osquery is running: %v", err)
-	}
-
-	client, err := clients.ConnectToOsquery(cfg)
+	osqClient, err := clients.New(cfg.OsquerySocket, cfg.OsqueryConfigPath, clients.WithMonitorDir(cfg.MonitorDir))
 	if err != nil {
-		log.Fatalf("Failed to connect to osquery: %v", err)
+		log.Fatalf("Failed to create osquery client: %v", err)
 	}
-	defer client.Close()
+	defer osqClient.Close()
+
+	if err := osqClient.EnsureFileEventMonitoring(cfg.OsquerySocket, cfg.MonitorDir); err != nil {
+		log.Fatalf("Failed to ensure osquery is monitoring file events: %v", err)
+	}
 
 	dbClient, err := db.NewClient(cfg.DataDir)
 	if err != nil {

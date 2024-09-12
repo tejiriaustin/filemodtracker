@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"github.com/tejiriaustin/savannah-assessment/service"
 	"os"
 	"path/filepath"
 	"sync"
@@ -15,7 +16,7 @@ import (
 type Daemon struct {
 	cfg         *config.Config
 	dbClient    *db.Client
-	fileTracker *FileTracker
+	fileTracker *service.FileTracker
 	cmdQueue    chan string
 	pidFile     string
 	wg          sync.WaitGroup
@@ -23,7 +24,7 @@ type Daemon struct {
 }
 
 func New(cfg *config.Config, dbClient *db.Client, cmd chan string) (*Daemon, error) {
-	ft, err := NewFileTracker(cfg, dbClient)
+	ft, err := service.NewFileTracker(cfg, dbClient)
 	if err != nil {
 		return nil, fmt.Errorf("error creating file tracker: %w", err)
 	}
@@ -117,11 +118,8 @@ func (d *Daemon) executeCommands() {
 	for {
 		select {
 		case cmd := <-d.cmdQueue:
-			// Execute the command
-			// This is where you'd implement the actual command execution logic
 			fmt.Printf("Executing command: %s\n", cmd)
 
-			// After execution, you might want to log it or update a status
 			event := models.FileEvent{
 				Path:      "Command Execution",
 				Operation: cmd,

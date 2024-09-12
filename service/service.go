@@ -9,7 +9,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/tejiriaustin/savannah-assessment/clients"
 	"github.com/tejiriaustin/savannah-assessment/config"
 	"github.com/tejiriaustin/savannah-assessment/db"
 	"github.com/tejiriaustin/savannah-assessment/models"
@@ -111,13 +110,6 @@ func (ft *FileTracker) handleEvent(event fsnotify.Event) {
 		Operation: operation,
 		Timestamp: time.Now(),
 	}
-
-	// Add event to osquery extension
-	clients.AddFileEvent(models.FileEvent{
-		Path:      fileEvent.Path,
-		Operation: fileEvent.Operation,
-		Timestamp: fileEvent.Timestamp,
-	})
 
 	// Insert event into database
 	err := ft.dbClient.InsertFileEvent(fileEvent)

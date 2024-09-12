@@ -29,7 +29,7 @@ func Start(cfg *config.Config, dbClient db.Repository) {
 	logs.SetText("Log entries will appear here...")
 	logs.Disable()
 
-	execPath := filepath.Join(filepath.Dir(cfg.ConfigPath), "filemodtracker")
+	execPath := filepath.Join(filepath.Dir(cfg.ConfigPath))
 
 	status := widget.NewLabel("Service Status: Unknown")
 	startButton := widget.NewButton("Start Service", func() {
@@ -71,7 +71,7 @@ func startService(status *widget.Label, execPath string) {
 	cmd.Stderr = &out
 	err := cmd.Run()
 	if err != nil {
-		status.SetText(fmt.Sprintf("Error starting service: %v\nOutput: %s", err, out.String()))
+		status.SetText(fmt.Sprintf("Error starting service: %v\nOutput: %s\n ExecPath: %v", err, out.String(), execPath))
 		return
 	}
 
