@@ -112,7 +112,14 @@ func (s *Server) receiveCommand(cmdChan chan<- string) gin.HandlerFunc {
 			return
 		}
 
-		cmdChan <- cmd.Command
+		// Validate the command
+		sanitizedCmd, err := validateAndSanitizeCommand(cmd.Command)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		cmdChan <- sanitizedCmd
 
 		c.JSON(http.StatusOK, gin.H{"status": "command received"})
 	}
