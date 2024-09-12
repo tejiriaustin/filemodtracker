@@ -65,7 +65,7 @@ func startService(status *widget.Label, execPath string) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	cmd := exec.Command(execPath, "daemon", "start")
+	cmd := exec.Command(execPath, "start")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -82,7 +82,7 @@ func stopService(status *widget.Label, execPath string) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	cmd := exec.Command(execPath, "daemon", "stop")
+	cmd := exec.Command(execPath, "stop")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out

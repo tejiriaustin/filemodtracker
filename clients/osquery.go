@@ -76,7 +76,7 @@ func EnsureOsqueryRunning() error {
 		}
 		fmt.Println("Osquery started successfully.")
 	} else {
-		fmt.Println("Osquery is already running.")
+		fmt.Println("Osquery is already running...")
 	}
 	return nil
 }

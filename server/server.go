@@ -31,7 +31,7 @@ func (s *Server) Start(dbClient *db.Client, cmdChan chan<- string) {
 	router := s.setupRouter(dbClient, cmdChan)
 
 	srv := &http.Server{
-		Addr:    s.cfg.APIAddress,
+		Addr:    s.cfg.Port,
 		Handler: router,
 	}
 

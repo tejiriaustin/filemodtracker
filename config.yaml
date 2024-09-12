@@ -1,4 +1,4 @@
 monitor_dir: "/Users/tejiriodiase/GolangProjects/github/tejiriaustin"
 check_frequency: "1m"
-port: "8081"
+port: ":8081"
 osquery_socket: "/var/osquery/osquery.em"

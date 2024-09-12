@@ -40,7 +40,7 @@ func New(cfg *config.Config, dbClient *db.Client, cmd chan string) (*Daemon, err
 
 func (d *Daemon) Start() error {
 	if d.isRunning() {
-		return fmt.Errorf("daemon is already running")
+		return nil
 	}
 
 	// Write PID file
