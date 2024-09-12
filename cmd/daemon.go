@@ -1,20 +1,12 @@
 package cmd
 
 import (
-	"github.com/tejiriaustin/savannah-assessment/clients"
-	"log"
-
 	"github.com/spf13/cobra"
-
-	"github.com/tejiriaustin/savannah-assessment/config"
-	"github.com/tejiriaustin/savannah-assessment/daemon"
-	"github.com/tejiriaustin/savannah-assessment/db"
-	"github.com/tejiriaustin/savannah-assessment/server"
 )
 
 var serviceCmd = &cobra.Command{
 	Use:   "daemon",
-	Short: "Start the File Modification Tracker daemon",
+	Short: "Start the File Modification Tracker daemon and server",
 	Run:   startDaemonService,
 }
 
@@ -23,41 +15,5 @@ func init() {
 }
 
 func startDaemonService(cmd *cobra.Command, args []string) {
-	cfg := config.GetConfig()
-
-	if err := clients.EnsureOsqueryRunning(); err != nil {
-		log.Fatalf("Failed to ensure osquery is running: %v", err)
-	}
-
-	client, err := clients.ConnectToOsquery(cfg)
-	if err != nil {
-		log.Fatalf("Failed to connect to osquery: %v", err)
-	}
-	defer client.Close()
-
-	dbClient, err := db.NewClient(cfg.DataDir)
-	if err != nil {
-		log.Fatalf("Failed to create database client: %v", err)
-	}
-	defer dbClient.Close()
-
-	cmdChan := make(chan string, 100)
-
-	d, err := daemon.New(cfg, dbClient, cmdChan)
-	if err != nil {
-		log.Fatalf("Failed to create daemon: %v", err)
-	}
-
-	go func() {
-		if err := d.Start(); err != nil {
-			log.Fatalf("Failed to start daemon: %v", err)
-		}
-	}()
-
-	s := server.New(cfg)
-	s.Start(dbClient, cmdChan)
-
-	if err := d.Stop(); err != nil {
-		log.Printf("Failed to stop daemon: %v", err)
-	}
+	start()
 }

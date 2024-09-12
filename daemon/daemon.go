@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"github.com/tejiriaustin/savannah-assessment/clients"
 	"os"
 	"path/filepath"
 	"sync"
@@ -22,8 +23,8 @@ type Daemon struct {
 	stopChan    chan struct{}
 }
 
-func New(cfg *config.Config, dbClient *db.Client, cmd chan string) (*Daemon, error) {
-	ft, err := NewFileTracker(cfg, dbClient)
+func New(cfg *config.Config, dbClient *db.Client, osqueryClient *clients.OsQueryClient, cmd chan string) (*Daemon, error) {
+	ft, err := NewFileTracker(cfg, dbClient, osqueryClient)
 	if err != nil {
 		return nil, fmt.Errorf("error creating file tracker: %w", err)
 	}
@@ -32,7 +33,7 @@ func New(cfg *config.Config, dbClient *db.Client, cmd chan string) (*Daemon, err
 		cfg:         cfg,
 		dbClient:    dbClient,
 		fileTracker: ft,
-		cmdQueue:    make(chan string, 100), // Buffer for 100 commands
+		cmdQueue:    cmd, // Buffer for 100 commands
 		pidFile:     filepath.Join(os.TempDir(), "filemodtracker.pid"),
 		stopChan:    make(chan struct{}),
 	}, nil
@@ -45,9 +46,12 @@ func (d *Daemon) Start() error {
 
 	// Write PID file
 	pid := os.Getpid()
-	if err := os.WriteFile(d.pidFile, []byte(fmt.Sprintf("%d", pid)), 0644); err != nil {
+	pidString := fmt.Sprintf("%d", pid)
+	if err := os.WriteFile(d.pidFile, []byte(pidString), 0644); err != nil {
 		return fmt.Errorf("failed to write PID file: %w", err)
 	}
+
+	d.cfg.PidFile = pidString
 
 	// Start file tracker
 	if err := d.fileTracker.Start(); err != nil {

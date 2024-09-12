@@ -11,12 +11,14 @@ import (
 )
 
 type Config struct {
-	ConfigPath     string
-	APIAddress     string        `json:"api_address"`
-	MonitorDir     string        `mapstructure:"monitor_dir"`
-	CheckFrequency time.Duration `mapstructure:"check_frequency"`
-	OsquerySocket  string        `mapstructure:"osquery_socket"`
-	DataDir        string        `mapstructure:"data_dir"`
+	ConfigPath        string
+	PidFile           string
+	APIAddress        string        `json:"api_address"`
+	MonitorDir        string        `mapstructure:"monitor_dir"`
+	CheckFrequency    time.Duration `mapstructure:"check_frequency"`
+	OsquerySocket     string        `mapstructure:"osquery_socket"`
+	OsqueryConfigPath string        `mapstructure:"osquery_config"`
+	DataDir           string        `mapstructure:"data_dir"`
 }
 
 var appConfig Config
@@ -38,6 +40,7 @@ func InitConfig(validator *validator.Validate) func() {
 		viper.SetDefault("check_frequency", "1m")
 		viper.SetDefault("api_endpoint", "http://localhost:8080/api/report")
 		viper.SetDefault("osquery_socket", "/usr/local/var/osquery/osquery.em")
+		viper.SetDefault("osquery_config", "/usr/local/var/osquery/osquery.em")
 
 		if err := viper.ReadInConfig(); err != nil {
 			var configFileNotFoundError viper.ConfigFileNotFoundError

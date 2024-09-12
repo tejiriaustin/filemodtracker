@@ -1,107 +1,168 @@
 package clients
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/osquery/osquery-go"
-	"github.com/osquery/osquery-go/plugin/table"
-
-	"github.com/tejiriaustin/savannah-assessment/config"
-	"github.com/tejiriaustin/savannah-assessment/models"
 )
 
-var fileEvents []models.FileEvent
+type (
+	OsQueryClient struct {
+		monitorDir        string
+		osquerySocketPath string
+		osqueryConfigPath string
+		osQuery           *osquery.ExtensionManagerClient
+	}
 
-func StartExtension(socketPath string) (*osquery.ExtensionManagerClient, error) {
-	server, err := osquery.NewExtensionManagerServer("file_monitor", socketPath)
+	Option func(s *OsQueryClient) error
+)
+
+func New(osquerySocketPath, osqueryConfigPath string, opts ...Option) (*OsQueryClient, error) {
+	client, err := osquery.NewClient(osquerySocketPath, 10*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("error creating extension: %w", err)
+		return nil, fmt.Errorf("failed to create osquery client: %v", err)
 	}
 
-	fileEventsTable := table.NewPlugin("file_events", FileEventsColumns(), FileEventsGenerate)
-	server.RegisterPlugin(fileEventsTable)
+	s := &OsQueryClient{
+		osQuery:           client,
+		osquerySocketPath: osquerySocketPath,
+		osqueryConfigPath: osqueryConfigPath,
+	}
 
-	go func() {
-		if err := server.Run(); err != nil {
-			fmt.Printf("Error running server: %v\n", err)
+	for _, opt := range opts {
+		if err := opt(s); err != nil {
+			client.Close()
+			return nil, err
 		}
-	}()
+	}
 
-	// Wait for server to become available
-	client, err := osquery.NewClient(socketPath, 5*time.Second)
+	return s, nil
+}
+
+func WithMonitorDir(dir string) Option {
+	return func(s *OsQueryClient) error {
+		s.monitorDir = dir
+		return nil
+	}
+}
+
+func (s *OsQueryClient) Close() {
+	if s.osQuery != nil {
+		s.osQuery.Close()
+	}
+}
+
+func (s *OsQueryClient) MonitorFiles(db *sql.DB) error {
+	query := fmt.Sprintf("SELECT path, action, time FROM file_events WHERE path LIKE '%s%%'", s.monitorDir)
+	resp, err := s.osQuery.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("error creating osquery client: %w", err)
+		return fmt.Errorf("error querying osquery: %v", err)
 	}
 
-	return client, nil
-}
+	for _, row := range resp.Response {
+		path := row["path"]
+		action := row["action"]
+		timestamp := row["time"]
 
-func FileEventsColumns() []table.ColumnDefinition {
-	return []table.ColumnDefinition{
-		table.TextColumn("path"),
-		table.TextColumn("operation"),
-		table.TextColumn("timestamp"),
-	}
-}
-
-func FileEventsGenerate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	var results []map[string]string
-
-	for _, event := range fileEvents {
-		results = append(results, map[string]string{
-			"path":      event.Path,
-			"operation": event.Operation,
-			"timestamp": event.Timestamp.Format(time.RFC3339),
-		})
-	}
-
-	return results, nil
-}
-
-func AddFileEvent(event models.FileEvent) {
-	fileEvents = append(fileEvents, event)
-}
-
-func EnsureOsqueryRunning() error {
-	cmd := exec.Command("pgrep", "osqueryd")
-	if err := cmd.Run(); err != nil {
-		fmt.Println("Osquery is not running. Attempting to start...")
-		startCmd := exec.Command("sudo", "systemctl", "start", "osqueryd")
-		if err := startCmd.Run(); err != nil {
-			return fmt.Errorf("failed to start osquery: %v", err)
+		t, err := time.Parse("2006-01-02 15:04:05", timestamp)
+		if err != nil {
+			log.Printf("Error parsing timestamp: %v", err)
+			continue
 		}
-		fmt.Println("Osquery started successfully.")
-	} else {
-		fmt.Println("Osquery is already running.")
+
+		_, err = db.Exec("INSERT INTO file_events (path, action, timestamp) VALUES (?, ?, ?)", path, action, t)
+		if err != nil {
+			log.Printf("Error inserting into database: %v", err)
+		}
 	}
+
 	return nil
 }
 
-func ConnectToOsquery(cfg *config.Config) (*osquery.ExtensionManagerClient, error) {
-	timeout := time.After(30 * time.Second)
-	tick := time.Tick(1 * time.Second)
-
-	for {
-		select {
-		case <-timeout:
-			return nil, fmt.Errorf("timed out waiting for osquery socket")
-		case <-tick:
-			if _, err := os.Stat(cfg.OsquerySocket); os.IsNotExist(err) {
-				fmt.Printf("Waiting for osquery socket at %s...\n", cfg.OsquerySocket)
-				continue
-			}
-
-			client, err := osquery.NewClient(cfg.OsquerySocket, 3*time.Second)
-			if err != nil {
-				fmt.Printf("Error connecting to osquery: %v. Retrying...\n", err)
-				continue
-			}
-
-			return client, nil
-		}
+func (s *OsQueryClient) EnsureFileEventMonitoring(osquerySocketPath, osqueryConfigPath string) error {
+	if _, err := os.Stat(osquerySocketPath); err == nil {
+		log.Println("osquery is already running")
+		return nil
 	}
+
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("osqueryd",
+			"--pidfile", `C:\ProgramData\osquery\osqueryd.pid`,
+			"--database_path", `C:\ProgramData\osquery\osquery.db`,
+			"--extensions_socket", osquerySocketPath,
+			"--config_path", osqueryConfigPath,
+			"--force")
+	default: // Unix-like systems (Linux, macOS)
+		cmd = exec.Command("osqueryd",
+			"--pidfile", "/var/run/osquery.pid",
+			"--database_path", "/var/osquery/osquery.db",
+			"--extensions_socket", osquerySocketPath,
+			"--config_path", osqueryConfigPath,
+			"--force")
+	}
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start osquery: %v", err)
+	}
+
+	log.Println("osquery started successfully")
+
+	for i := 0; i < 10; i++ {
+		if _, err := os.Stat(osquerySocketPath); err == nil {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+
+	return fmt.Errorf("osquery socket file/pipe not created within the expected time")
+}
+
+func (s *OsQueryClient) GetFileEvents() ([]struct {
+	Path      string
+	Action    string
+	Timestamp time.Time
+}, error) {
+	query := fmt.Sprintf("SELECT path, action, time FROM file_events WHERE path LIKE '%s%%' AND time > (SELECT unix_time FROM time) - 10", s.monitorDir)
+	resp, err := s.osQuery.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("error querying osquery: %v", err)
+	}
+
+	var events []struct {
+		Path      string
+		Action    string
+		Timestamp time.Time
+	}
+
+	for _, row := range resp.Response {
+		timestamp, err := time.Parse("2006-01-02 15:04:05", row["time"])
+		if err != nil {
+			log.Printf("Error parsing timestamp: %v", err)
+			continue
+		}
+
+		events = append(events, struct {
+			Path      string
+			Action    string
+			Timestamp time.Time
+		}{
+			Path:      row["path"],
+			Action:    row["action"],
+			Timestamp: timestamp,
+		})
+	}
+
+	return events, nil
 }
