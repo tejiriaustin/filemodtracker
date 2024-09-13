@@ -1,6 +1,6 @@
 # File Modification Tracker
 
-This project is a File Modification Tracker implemented in Go, designed to run as a background service on Windows. It tracks and records modifications to files in a specified directory, integrates system monitoring via osquery, and provides configuration management.
+This project is a File Modification Tracker implemented in Go, designed to run as a background service. It tracks and records modifications to files in a specified directory, integrates system monitoring via osquery, and provides configuration management.
 
 ## Prerequisites
 
