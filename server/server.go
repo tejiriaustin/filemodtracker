@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"errors"
+	"github.com/tejiriaustin/savannah-assessment/daemon"
+	"github.com/tejiriaustin/savannah-assessment/monitoring"
 	"log"
 	"net/http"
 	"os"
@@ -13,22 +15,22 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
-	"github.com/tejiriaustin/savannah-assessment/db"
-	"github.com/tejiriaustin/savannah-assessment/models"
 )
 
 type Server struct {
-	cfg *config.Config
+	cfg    *config.Config
+	server *http.Server
 }
 
 func New(cfg *config.Config) *Server {
 	return &Server{
-		cfg: cfg,
+		cfg:    cfg,
+		server: &http.Server{Addr: cfg.Port},
 	}
 }
 
-func (s *Server) Start(dbClient *db.Client, cmdChan chan<- string) {
-	router := s.setupRouter(dbClient, cmdChan)
+func (s *Server) Start(monitor monitoring.Monitor, cmdChan chan<- daemon.Command) {
+	router := s.setupRouter(monitor, cmdChan)
 
 	srv := &http.Server{
 		Addr:    s.cfg.Port,
@@ -54,13 +56,18 @@ func (s *Server) Start(dbClient *db.Client, cmdChan chan<- string) {
 	log.Println("Server exiting")
 }
 
-func (s *Server) setupRouter(dbClient *db.Client, cmdChan chan<- string) *gin.Engine {
+func (s *Server) setupRouter(monitor monitoring.Querier, cmdChan chan<- daemon.Command) *gin.Engine {
 	r := gin.Default()
 
 	r.GET("/health", s.healthCheck())
-	r.GET("/events", s.retrieveEvents(dbClient))
-	r.POST("/events", s.receiveFileEvent(dbClient))
+	r.GET("/events", s.retrieveEvents(monitor))
 	r.POST("/command", s.receiveCommand(cmdChan))
+
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"status": "not found",
+		})
+	})
 
 	return r
 }
@@ -73,36 +80,18 @@ func (s *Server) healthCheck() gin.HandlerFunc {
 	}
 }
 
-func (s *Server) retrieveEvents(dbClient db.Repository) gin.HandlerFunc {
+func (s *Server) retrieveEvents(monitor monitoring.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		events, err := dbClient.GetFileEvents()
+		query, err := monitor.Query("SELECT * FROM file_events LIMIT 100")
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, events)
+		c.JSON(http.StatusOK, query)
 	}
 }
 
-func (s *Server) receiveFileEvent(dbClient db.Repository) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var event models.FileEvent
-		if err := c.ShouldBindJSON(&event); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		err := dbClient.InsertFileEvent(event)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"status": "event received"})
-	}
-}
-
-func (s *Server) receiveCommand(cmdChan chan<- string) gin.HandlerFunc {
+func (s *Server) receiveCommand(cmdChan chan<- daemon.Command) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var cmd struct {
 			Command string `json:"command" binding:"required"`
@@ -119,7 +108,10 @@ func (s *Server) receiveCommand(cmdChan chan<- string) gin.HandlerFunc {
 			return
 		}
 
-		cmdChan <- sanitizedCmd
+		cmdChan <- daemon.Command{
+			Command: sanitizedCmd[0],
+			Args:    sanitizedCmd[1:],
+		}
 
 		c.JSON(http.StatusOK, gin.H{"status": "command received"})
 	}

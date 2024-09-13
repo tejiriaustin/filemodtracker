@@ -1,136 +1,70 @@
 package daemon
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/tejiriaustin/savannah-assessment/service"
-	"os"
-	"path/filepath"
-	"sync"
+	"log"
+	"os/exec"
 	"time"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
-	"github.com/tejiriaustin/savannah-assessment/db"
-	"github.com/tejiriaustin/savannah-assessment/models"
+	"github.com/tejiriaustin/savannah-assessment/monitoring"
 )
 
-type Daemon struct {
-	cfg         *config.Config
-	dbClient    *db.Client
-	fileTracker *service.FileTracker
-	cmdQueue    chan string
-	pidFile     string
-	wg          sync.WaitGroup
-	stopChan    chan struct{}
+type (
+	Daemon struct {
+		cfg         *config.Config
+		fileTracker monitoring.Monitor
+		cmdChan     <-chan Command
+		pidFile     string
+	}
+	Command struct {
+		Command string
+		Args    []string
+	}
+)
+
+func newDaemon() *Daemon {
+	return &Daemon{}
 }
 
-func New(cfg *config.Config, dbClient *db.Client, cmd chan string) (*Daemon, error) {
-	ft, err := service.NewFileTracker(cfg, dbClient)
-	if err != nil {
-		return nil, fmt.Errorf("error creating file tracker: %w", err)
-	}
+func New(cfg *config.Config, fileTracker monitoring.Monitor, cmdChan <-chan Command) (*Daemon, error) {
+	d := newDaemon()
+	d.cfg = cfg
+	d.fileTracker = fileTracker
+	d.cmdChan = cmdChan
 
-	return &Daemon{
-		cfg:         cfg,
-		dbClient:    dbClient,
-		fileTracker: ft,
-		cmdQueue:    make(chan string, 100), // Buffer for 100 commands
-		pidFile:     filepath.Join(os.TempDir(), "filemodtracker.pid"),
-		stopChan:    make(chan struct{}),
-	}, nil
+	return d, nil
 }
 
-func (d *Daemon) Start() error {
-	if d.isRunning() {
-		return nil
-	}
-
-	// Write PID file
-	pid := os.Getpid()
-	if err := os.WriteFile(d.pidFile, []byte(fmt.Sprintf("%d", pid)), 0644); err != nil {
-		return fmt.Errorf("failed to write PID file: %w", err)
-	}
-
-	// Start file tracker
-	if err := d.fileTracker.Start(); err != nil {
-		return fmt.Errorf("failed to start file tracker: %w", err)
-	}
-
-	// Start command executor
-	d.wg.Add(1)
-	go d.commandExecutor()
-
-	return nil
-}
-
-func (d *Daemon) Stop() error {
-	if !d.isRunning() {
-		return fmt.Errorf("daemon is not running")
-	}
-
-	// Stop file tracker
-	d.fileTracker.Stop()
-
-	// Stop command executor
-	close(d.stopChan)
-	d.wg.Wait()
-
-	// Remove PID file
-	if err := os.Remove(d.pidFile); err != nil {
-		return fmt.Errorf("failed to remove PID file: %w", err)
-	}
-
-	return nil
-}
-
-func (d *Daemon) Status() (string, error) {
-	if d.isRunning() {
-		return "Running", nil
-	}
-	return "Stopped", nil
-}
-
-func (d *Daemon) isRunning() bool {
-	_, err := os.Stat(d.pidFile)
-	return err == nil
-}
-
-func (d *Daemon) EnqueueCommand(cmd string) {
-	d.cmdQueue <- cmd
-}
-
-func (d *Daemon) commandExecutor() {
-	defer d.wg.Done()
-
-	ticker := time.NewTicker(time.Minute) // Run every minute
-	defer ticker.Stop()
+func (daemon *Daemon) StartDaemon() error {
+	//execPath := filepath.Join(filepath.Dir(daemon.cfg.ConfigPath))
 
 	for {
-		select {
-		case <-ticker.C:
-			d.executeCommands()
-		case <-d.stopChan:
-			return
-		}
-	}
-}
+		time.Sleep(10 * time.Second)
 
-func (d *Daemon) executeCommands() {
-	for {
-		select {
-		case cmd := <-d.cmdQueue:
-			fmt.Printf("Executing command: %s\n", cmd)
+		log.Println("Checking for new commands...")
 
-			event := models.FileEvent{
-				Path:      "Command Execution",
-				Operation: cmd,
-				Timestamp: time.Now(),
-			}
-			if err := d.dbClient.InsertFileEvent(event); err != nil {
-				fmt.Printf("Error logging command execution: %v\n", err)
+		select {
+		case cmd := <-daemon.cmdChan:
+			err := daemon.executeCommand(cmd)
+			if err != nil {
+				log.Printf("Error executing command: %v\n", err)
 			}
 		default:
-			// No more commands in the queue
-			return
 		}
 	}
+}
+
+func (daemon *Daemon) executeCommand(cmd Command) error {
+	command := exec.Command(cmd.Command, cmd.Args...)
+	var out bytes.Buffer
+	command.Stdout = &out
+	command.Stderr = &out
+	err := command.Run()
+	if err != nil {
+		return fmt.Errorf("Command execution failed: %v, output: %s", err, out.String())
+	}
+	log.Printf("Command executed successfully. Output: %s", out.String())
+	return nil
 }

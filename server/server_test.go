@@ -1,8 +1,8 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,88 +11,129 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/tejiriaustin/savannah-assessment/models"
+	"github.com/tejiriaustin/savannah-assessment/config"
 )
 
-// MockDB is a mock implementation of db.Repository
-type MockDB struct {
+// MockMonitor is a mock implementation of the monitoring.Monitor interface
+type MockMonitor struct {
 	mock.Mock
 }
 
-func (m *MockDB) Close() error {
-	return nil
+func (m *MockMonitor) Query(query string) ([]map[string]string, error) {
+	args := m.Called(query)
+	return args.Get(0).([]map[string]string), args.Error(1)
 }
 
-func (m *MockDB) CreateFileEventsTable() error {
-	return nil
+func TestNew(t *testing.T) {
+	cfg := &config.Config{Port: ":8080"}
+	server := New(cfg)
+	assert.NotNil(t, server)
+	assert.Equal(t, cfg, server.cfg)
 }
 
-func (m *MockDB) InsertFileEvent(event models.FileEvent) error {
-	return nil
-}
-
-func (m *MockDB) GetFileEvents() ([]models.FileEvent, error) {
-	args := m.Called()
-	return args.Get(0).([]models.FileEvent), args.Error(1)
-}
-
-func TestRetrieveEvents(t *testing.T) {
-	// Set Gin to Test Mode
+func TestServer_Endpoints(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// Test cases
-	testCases := []struct {
+	mockMonitor := new(MockMonitor)
+	mockEvents := []map[string]string{{"dummy_event": "some_event"}}
+	mockMonitor.On("Query", "SELECT * FROM file_events LIMIT 100").Return(mockEvents, nil)
+
+	cmdChan := make(chan string, 1)
+	server := &Server{}
+	router := server.setupRouter(mockMonitor, cmdChan)
+
+	tests := []struct {
 		name           string
-		setupMock      func(*MockDB)
+		method         string
+		url            string
+		body           interface{}
 		expectedStatus int
 		expectedBody   interface{}
+		validateFunc   func(*testing.T, *httptest.ResponseRecorder)
 	}{
 		{
-			name: "Successful retrieval",
-			setupMock: func(mockDB *MockDB) {
-				mockDB.On("GetFileEvents").Return([]models.FileEvent{
-					{ID: 1, Path: "/test/file1", Operation: "CREATE"},
-					{ID: 2, Path: "/test/file2", Operation: "MODIFY"},
-				}, nil)
-			},
+			name:           "Health Check",
+			method:         "GET",
+			url:            "/health",
 			expectedStatus: http.StatusOK,
-			expectedBody: []models.FileEvent{
-				{ID: 1, Path: "/test/file1", Operation: "CREATE"},
-				{ID: 2, Path: "/test/file2", Operation: "MODIFY"},
+			expectedBody:   map[string]interface{}{"status": "alive and well"},
+		},
+		{
+			name:           "Retrieve Events",
+			method:         "GET",
+			url:            "/events",
+			expectedStatus: http.StatusOK,
+			expectedBody:   []interface{}{map[string]interface{}{"dummy_event": "some_event"}},
+		},
+		{
+			name:           "Valid Command",
+			method:         "POST",
+			url:            "/command",
+			body:           gin.H{"command": "ls -l"},
+			expectedStatus: http.StatusOK,
+			expectedBody:   map[string]interface{}{"status": "command received"},
+			validateFunc: func(t *testing.T, w *httptest.ResponseRecorder) {
+				assert.Equal(t, "ls -l", <-cmdChan)
 			},
 		},
 		{
-			name: "Database error",
-			setupMock: func(mockDB *MockDB) {
-				mockDB.On("GetFileEvents").Return([]models.FileEvent{}, errors.New("database error"))
-			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   gin.H{"error": "database error"},
+			name:           "Empty Command",
+			method:         "POST",
+			url:            "/command",
+			body:           gin.H{"command": ""},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   map[string]interface{}{"error": "Key: 'Command' Error:Field validation for 'Command' failed on the 'required' tag"},
+		},
+		{
+			name:           "Invalid Command",
+			method:         "POST",
+			url:            "/command",
+			body:           gin.H{"command": "rm -rf /"},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   map[string]interface{}{"error": "base command not allowed"},
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Create a mock database
-			mockDB := new(MockDB)
-			tc.setupMock(mockDB)
-
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			c, _ := gin.CreateTestContext(w)
+			var req *http.Request
 
-			s := &Server{}
+			if tt.body != nil {
+				jsonBody, _ := json.Marshal(tt.body)
+				req, _ = http.NewRequest(tt.method, tt.url, bytes.NewBuffer(jsonBody))
+				req.Header.Set("Content-Type", "application/json")
+			} else {
+				req, _ = http.NewRequest(tt.method, tt.url, nil)
+			}
 
-			handler := s.retrieveEvents(mockDB)
-			handler(c)
+			router.ServeHTTP(w, req)
 
-			assert.Equal(t, tc.expectedStatus, w.Code)
+			assert.Equal(t, tt.expectedStatus, w.Code)
 
-			var response interface{}
-			err := json.Unmarshal(w.Body.Bytes(), &response)
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedBody, response)
+			if tt.expectedBody != nil {
+				var response interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedBody, response)
+			}
 
-			mockDB.AssertExpectations(t)
+			if tt.validateFunc != nil {
+				tt.validateFunc(t, w)
+			}
 		})
 	}
+
+	mockMonitor.AssertExpectations(t)
+}
+
+func TestServer_setupRouter(t *testing.T) {
+	server := &Server{}
+	mockMonitor := new(MockMonitor)
+	cmdChan := make(chan string, 1)
+
+	router := server.setupRouter(mockMonitor, cmdChan)
+
+	assert.NotNil(t, router)
+	assert.Len(t, router.Routes(), 3)
 }

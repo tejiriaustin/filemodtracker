@@ -2,7 +2,9 @@ package ui
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/tejiriaustin/savannah-assessment/monitoring"
 	"os/exec"
 	"path/filepath"
 	"sync"
@@ -14,14 +16,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
-	"github.com/tejiriaustin/savannah-assessment/db"
 )
 
 var (
 	mu sync.Mutex
 )
 
-func Start(cfg *config.Config, dbClient db.Repository) {
+func Start(cfg *config.Config, monitorClient monitoring.Monitor) {
 	a := app.New()
 	w := a.NewWindow("File Modification Tracker")
 
@@ -32,10 +33,10 @@ func Start(cfg *config.Config, dbClient db.Repository) {
 	execPath := filepath.Join(filepath.Dir(cfg.ConfigPath))
 
 	status := widget.NewLabel("Service Status: Unknown")
-	startButton := widget.NewButton("Start Service", func() {
+	startButton := widget.NewButton("StartMonitoring Service", func() {
 		go func() {
 			startService(status, execPath)
-			periodicLogRefresh(logs, dbClient)
+			periodicLogRefresh(logs, monitorClient)
 			periodicStatusCheck(status, execPath)
 		}()
 	})
@@ -48,7 +49,7 @@ func Start(cfg *config.Config, dbClient db.Repository) {
 	checkFreqLabel := widget.NewLabel(fmt.Sprintf("Check Frequency: %s", cfg.CheckFrequency))
 
 	refreshLogsButton := widget.NewButton("Refresh Logs", func() {
-		refreshLogs(logs, dbClient)
+		refreshLogs(logs, monitorClient)
 	})
 
 	buttons := container.NewHBox(startButton, stopButton, refreshLogsButton)
@@ -115,28 +116,24 @@ func periodicStatusCheck(status *widget.Label, execPath string) {
 	}
 }
 
-func refreshLogs(logs *widget.Entry, dbClient db.Repository) {
-	events, err := dbClient.GetFileEvents()
+func refreshLogs(logs *widget.Entry, monitorClient monitoring.Monitor) {
+	events, err := monitorClient.Query("SELECT * FROM file_events")
 	if err != nil {
 		logs.SetText(fmt.Sprintf("Error fetching logs: %v", err))
 		return
 	}
 
-	var logText string
-	for _, event := range events {
-		logText += fmt.Sprintf("%s: %s %s\n", event.Timestamp.Format("2006-01-02 15:04:05"), event.Operation, event.Path)
+	stringEvents, err := json.Marshal(events)
+	if err != nil {
+		return
 	}
 
-	if logText == "" {
-		logText = "No logs available."
-	}
-
-	logs.SetText(logText)
+	logs.SetText(string(stringEvents))
 }
 
-func periodicLogRefresh(logs *widget.Entry, dbClient db.Repository) {
+func periodicLogRefresh(logs *widget.Entry, monitorClient monitoring.Monitor) {
 	ticker := time.NewTicker(10 * time.Second)
 	for range ticker.C {
-		refreshLogs(logs, dbClient)
+		refreshLogs(logs, monitorClient)
 	}
 }

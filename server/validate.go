@@ -7,12 +7,12 @@ import (
 	"strings"
 )
 
-func validateAndSanitizeCommand(cmd string) (string, error) {
+func validateAndSanitizeCommand(cmd string) ([]string, error) {
 	cmd = strings.TrimSpace(cmd)
 
 	// Basic structure check
 	if len(cmd) == 0 {
-		return "", errors.New("empty command")
+		return nil, errors.New("empty command")
 	}
 
 	var parts []string
@@ -22,31 +22,29 @@ func validateAndSanitizeCommand(cmd string) (string, error) {
 		parts = strings.Fields(cmd)
 	}
 
-	// Validate the base command
 	baseCmd := strings.ToLower(parts[0])
 	if !isAllowedCommand(baseCmd) {
-		return "", errors.New("base command not allowed")
+		return nil, errors.New("base command not allowed")
 	}
 
-	// Validate and sanitize arguments
 	for i := 1; i < len(parts); i++ {
 		sanitized, err := sanitizeArgument(parts[i])
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		parts[i] = sanitized
 	}
 
-	// Reconstruct the sanitized command
-	return strings.Join(parts, " "), nil
+	return parts, nil
 }
 
+// Performing a whitelist
 // Another approach would be to blacklist some commands
 func isAllowedCommand(cmd string) bool {
 	unixCommands := map[string]bool{
 		"ls": true, "cat": true, "grep": true, "echo": true,
 		"ps": true, "top": true, "df": true, "du": true,
-		// May need t add more Linux commands here
+		// May need t0 add more Linux commands here
 	}
 	windowsCommands := map[string]bool{
 		"dir": true, "type": true, "findstr": true, "echo": true,
@@ -75,7 +73,6 @@ func sanitizeArgument(arg string) (string, error) {
 
 	return sanitized, nil
 }
-
 func splitWindowsCommand(cmd string) []string {
 	var parts []string
 	var current string
@@ -84,15 +81,21 @@ func splitWindowsCommand(cmd string) []string {
 	for _, r := range cmd {
 		switch r {
 		case '"':
-			inQuotes = !inQuotes
+			if inQuotes {
+				current += string(r)
+				inQuotes = false
+			} else {
+				current += string(r)
+				inQuotes = true
+			}
 		case ' ':
-			if !inQuotes {
+			if inQuotes {
+				current += string(r)
+			} else {
 				if current != "" {
 					parts = append(parts, current)
 					current = ""
 				}
-			} else {
-				current += string(r)
 			}
 		default:
 			current += string(r)
@@ -102,6 +105,5 @@ func splitWindowsCommand(cmd string) []string {
 	if current != "" {
 		parts = append(parts, current)
 	}
-
 	return parts
 }

@@ -4,16 +4,14 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/tejiriaustin/savannah-assessment/daemon"
-	"github.com/tejiriaustin/savannah-assessment/db"
-	"github.com/tejiriaustin/savannah-assessment/server"
-	"log"
-	"os"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
+	"github.com/tejiriaustin/savannah-assessment/daemon"
 )
 
 var (
@@ -30,64 +28,14 @@ var rootCmd = &cobra.Command{
 
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Start the File Modification Tracker daemon",
-	Run: func(cmd *cobra.Command, args []string) {
-		cfg := config.GetConfig()
-
-		dbClient, err := db.NewClient(cfg.DataDir)
-		if err != nil {
-			log.Fatalf("Failed to create database client: %v", err)
-		}
-		defer dbClient.Close()
-
-		cmdChan := make(chan string, 100) // Buffer for 100 commands
-
-		d, err = daemon.New(cfg, dbClient, cmdChan)
-		if err != nil {
-			log.Fatalf("Failed to create daemon: %v", err)
-		}
-
-		go func() {
-			if err := d.Start(); err != nil {
-				log.Fatalf("Failed to start daemon: %v", err)
-			}
-		}()
-
-		s := server.New(cfg)
-		s.Start(dbClient, cmdChan)
-
-		// The server.Start() method will block until the server is shut down
-		// After the server is shut down, we should also stop the daemon
-		if err := d.Stop(); err != nil {
-			log.Printf("Failed to stop daemon: %v", err)
-		}
-	},
+	Short: "StartMonitoring the File Modification Tracker daemon",
+	Run:   startDaemonService,
 }
 
 var stopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the File Modification Tracker daemon",
-	Run: func(cmd *cobra.Command, args []string) {
-		cfg := config.GetConfig()
-		dbClient, err := db.NewClient(cfg.DataDir)
-		if err != nil {
-			fmt.Printf("Error creating database client: %v\n", err)
-			os.Exit(1)
-		}
-
-		d, err = daemon.New(cfg, dbClient, nil)
-		if err != nil {
-			fmt.Printf("Error creating daemon: %v\n", err)
-			os.Exit(1)
-		}
-
-		err = d.Stop()
-		if err != nil {
-			fmt.Printf("Error stopping daemon: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Println("Daemon stopped successfully.")
-	},
+	Run:   stopDaemon,
 }
 
 var statusCmd = &cobra.Command{
@@ -95,7 +43,11 @@ var statusCmd = &cobra.Command{
 	Short: "Check the status of the File Modification Tracker daemon",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Checking File Modification Tracker daemon status...")
-		// Implement status check logic here
+		fmt.Println("\nCurrent configuration:")
+		fmt.Printf("Monitor directory: %s\n", viper.GetString("monitor_dir"))
+		fmt.Printf("Check frequency: %s\n", viper.GetDuration("check_frequency"))
+		fmt.Printf("API endpoint: %s\n", viper.GetString("api_endpoint"))
+		fmt.Printf("Osquery socket: %s\n", viper.GetString("osquery_socket"))
 	},
 }
 
