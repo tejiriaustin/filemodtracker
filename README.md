@@ -4,7 +4,7 @@ This project is a File Modification Tracker implemented in Go, designed to run a
 
 ## Prerequisites
 
-- Go (version 1.x or later)
+- Go (version 1.20 or later)
 - osquery
 - make (for running Makefile commands)
 
@@ -12,7 +12,7 @@ This project is a File Modification Tracker implemented in Go, designed to run a
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/filemodtracker.git
+   git clone https://github.com/tejiriaustin/filemodtracker.git
    cd filemodtracker
    ```
 
@@ -89,13 +89,13 @@ make rm-mocks
 
 ## Project Structure
 
-- `main.go`: The entry point of the application.
-- `daemon/`: Contains the implementation of the background service.
-- `ui/`: Contains the implementation of the UI component.
+- `cmd/`: Entry points for running commands from the command-line.
 - `config/`: Handles configuration management using viper.
-- `monitor/`: Implements file monitoring logic, potentially using osquery.
-- `api/`: Handles API integration for remote reporting.
-- `testutils/mocks/`: Contains generated mocks for testing.
+- `daemon/`: Contains the implementation of the background service.
+- `monitoring/`: Implements file monitoring logic, potentially using osquery.
+- `server/`: The entry point of the application.
+- `ui/`: Contains the implementation of the UI component.
+- `main.go`: The entry point of the application.
 
 ## Configuration
 
@@ -109,12 +109,8 @@ The project uses a configuration file to manage service settings. Ensure you hav
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## License
-
-[Insert your license information here]
-
 ## Contact
 
-Your Name - your.email@example.com
+Your Name - tejiiaustin123@example.com
 
-Project Link: [https://github.com/yourusername/filemodtracker](https://github.com/yourusername/filemodtracker)
+Project Link: [https://github.com/tejiriaustin/filemodtracker](https://github.com/tejiriaustin/filemodtracker)
