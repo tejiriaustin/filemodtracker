@@ -90,13 +90,13 @@ func (c *OsQueryFIMClient) createConfig() error {
 	return os.WriteFile(c.configPath, jsonConfig, 0644)
 }
 
-func (c *OsQueryFIMClient) clearDatabaseLock() error {
-	lockFile := filepath.Join(c.databasePath, "LOCK")
-	if err := os.Remove(lockFile); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove database lock file: %w", err)
-	}
-	return nil
-}
+//func (c *OsQueryFIMClient) clearDatabaseLock() error {
+//	lockFile := filepath.Join(c.databasePath, "LOCK")
+//	if err := os.Remove(lockFile); err != nil && !os.IsNotExist(err) {
+//		return fmt.Errorf("failed to remove database lock file: %w", err)
+//	}
+//	return nil
+//}
 
 func (c *OsQueryFIMClient) Start() error {
 	if err := c.createConfig(); err != nil {
@@ -107,9 +107,9 @@ func (c *OsQueryFIMClient) Start() error {
 		return fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	if err := c.clearDatabaseLock(); err != nil {
-		return err
-	}
+	//if err := c.clearDatabaseLock(); err != nil {
+	//	return err
+	//}
 
 	c.cmd = exec.Command(c.osqueryBinary,
 		"--config_path="+c.configPath,
@@ -229,9 +229,9 @@ func (c *OsQueryFIMClient) Restart() error {
 		return fmt.Errorf("failed to stop osquery: %w", err)
 	}
 
-	if err := c.clearDatabaseLock(); err != nil {
-		return err
-	}
+	//if err := c.clearDatabaseLock(); err != nil {
+	//	return err
+	//}
 
 	return c.Start()
 }
@@ -271,8 +271,4 @@ func (c *OsQueryFIMClient) Close() error {
 	}
 
 	return c.Wait()
-}
-
-func contains(s, substr string) bool {
-	return strings.Contains(s, substr)
 }

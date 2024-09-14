@@ -1,7 +1,7 @@
 api_endpoint: http://localhost:8080/api/report
 check_frequency: 1m
 data_dir: tmp
-monitor_dir: /Users/tejiriodiase/GolangProjects/github/tejiriaustin
+monitor_dir: /Users/%%
 osquery_socket: /Users/tejiriodiase/.osquery/shell.em51768
 port: :80
 timeout: 1m

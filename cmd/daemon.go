@@ -42,25 +42,25 @@ func startDaemonService(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var wg sync.WaitGroup
-
-	cmdChan := make(chan daemon.Command, 100)
-
-	monitorClient, err := monitoring.New(cfg.OsqueryConfig,
-		monitoring.WithMonitorDirs([]string{cfg.MonitorDir}),
-	)
+	monitorClient, err := monitoring.New(cfg.OsqueryConfig, monitoring.WithMonitorDirs([]string{cfg.MonitorDir}))
 	if err != nil {
 		log.Fatalf("failed to create monitoring client: %v", err)
 		return
 	}
+
 	err = monitorClient.Start()
 	if err != nil {
 		log.Fatalf("failed to start monitoring client: %v", err)
 		return
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var (
+		wg      = sync.WaitGroup{}
+		cmdChan = make(chan daemon.Command, 100)
+	)
 
 	wg.Add(1)
 	go func() {

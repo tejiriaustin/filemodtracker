@@ -11,12 +11,10 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
-	"github.com/tejiriaustin/savannah-assessment/daemon"
 )
 
 var (
 	cfgFile string
-	d       *daemon.Daemon
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -24,12 +22,6 @@ var rootCmd = &cobra.Command{
 	Use:   "filemodtracker",
 	Short: "File Modification Tracker",
 	Long:  `A CLI tool to track and record modifications to files in a specified directory.`,
-}
-
-var startCmd = &cobra.Command{
-	Use:   "start",
-	Short: "StartMonitoring the File Modification Tracker daemon",
-	Run:   startDaemonService,
 }
 
 var stopCmd = &cobra.Command{
@@ -93,9 +85,9 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
 
-	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(stopCmd)
 	rootCmd.AddCommand(statusCmd)
+
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configViewCmd)
 	configCmd.AddCommand(configSetCmd)

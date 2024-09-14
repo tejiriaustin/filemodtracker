@@ -138,7 +138,18 @@ func requestRootAccess(w fyne.Window) bool {
 }
 
 func startService(status *widget.Label, execPath string) {
-	cmd := exec.Command("sudo", "./filemodtracker", "start", "-d")
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("powershell", "-Command", "Start-Process", filepath.Join(execPath, "filemodtracker.exe"), "start", "-Verb", "runAs")
+	case "darwin", "linux":
+		cmd = exec.Command("sudo", "bash", "-c", fmt.Sprintf("nohup %s start > /dev/null 2>&1 &", filepath.Join(execPath, "filemodtracker")))
+	default:
+		status.SetText(fmt.Sprintf("Service Status: Unsupported operating system: %s", runtime.GOOS))
+		return
+	}
+
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -146,7 +157,7 @@ func startService(status *widget.Label, execPath string) {
 	if err != nil {
 		status.SetText(fmt.Sprintf("Service Status: Failed to start - %v", err))
 	} else {
-		status.SetText(fmt.Sprintf("Service Status: %s", out.String()))
+		status.SetText("Service Status: Started in background")
 	}
 }
 
