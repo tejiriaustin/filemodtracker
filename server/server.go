@@ -56,7 +56,7 @@ func (s *Server) Start(monitor monitoring.Monitor, cmdChan chan<- daemon.Command
 	log.Println("Server exiting")
 }
 
-func (s *Server) setupRouter(monitor monitoring.Querier, cmdChan chan<- daemon.Command) *gin.Engine {
+func (s *Server) setupRouter(monitor monitoring.Monitor, cmdChan chan<- daemon.Command) *gin.Engine {
 	r := gin.Default()
 
 	r.GET("/health", s.healthCheck())
@@ -80,9 +80,9 @@ func (s *Server) healthCheck() gin.HandlerFunc {
 	}
 }
 
-func (s *Server) retrieveEvents(monitor monitoring.Querier) gin.HandlerFunc {
+func (s *Server) retrieveEvents(monitor monitoring.Monitor) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		query, err := monitor.Query("SELECT * FROM file_events LIMIT 100")
+		query, err := monitor.GetFileEvents()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

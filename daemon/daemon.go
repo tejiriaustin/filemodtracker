@@ -37,8 +37,13 @@ func New(cfg *config.Config, fileTracker monitoring.Monitor, cmdChan <-chan Comm
 	return d, nil
 }
 
-func (daemon *Daemon) StartDaemon() error {
+func (d *Daemon) StartDaemon() error {
 	//execPath := filepath.Join(filepath.Dir(daemon.cfg.ConfigPath))
+
+	if err := d.fileTracker.Start(); err != nil {
+		log.Fatalf("Failed to start file_events logging: %v", err)
+		return err
+	}
 
 	for {
 		time.Sleep(10 * time.Second)
@@ -46,8 +51,8 @@ func (daemon *Daemon) StartDaemon() error {
 		log.Println("Checking for new commands...")
 
 		select {
-		case cmd := <-daemon.cmdChan:
-			err := daemon.executeCommand(cmd)
+		case cmd := <-d.cmdChan:
+			err := d.executeCommand(cmd)
 			if err != nil {
 				log.Printf("Error executing command: %v\n", err)
 			}
@@ -56,14 +61,14 @@ func (daemon *Daemon) StartDaemon() error {
 	}
 }
 
-func (daemon *Daemon) executeCommand(cmd Command) error {
+func (d *Daemon) executeCommand(cmd Command) error {
 	command := exec.Command(cmd.Command, cmd.Args...)
 	var out bytes.Buffer
 	command.Stdout = &out
 	command.Stderr = &out
 	err := command.Run()
 	if err != nil {
-		return fmt.Errorf("Command execution failed: %v, output: %s", err, out.String())
+		return fmt.Errorf("command execution failed: %v, output: %s", err, out.String())
 	}
 	log.Printf("Command executed successfully. Output: %s", out.String())
 	return nil

@@ -44,11 +44,15 @@ func isAllowedCommand(cmd string) bool {
 	unixCommands := map[string]bool{
 		"ls": true, "cat": true, "grep": true, "echo": true,
 		"ps": true, "top": true, "df": true, "du": true,
+		"osqueryi": true,
+		"osqueryd": true,
 		// May need t0 add more Linux commands here
 	}
 	windowsCommands := map[string]bool{
 		"dir": true, "type": true, "findstr": true, "echo": true,
 		"tasklist": true, "systeminfo": true, "chkdsk": true,
+		"osqueryi": true,
+		"osqueryd": true,
 		// May need to add more Windows commands here
 	}
 
@@ -71,8 +75,32 @@ func sanitizeArgument(arg string) (string, error) {
 		return "", errors.New("invalid argument: potential path traversal")
 	}
 
+	osqueryArgs := map[string]bool{
+		"--verbose":            true,
+		"--json":               true,
+		"--config_path":        true,
+		"--database_path":      true,
+		"--extension":          true,
+		"--flagfile":           true,
+		"--logger_path":        true,
+		"--pidfile":            true,
+		"--disable_extensions": true,
+		"--disable_database":   true,
+		"--disable_events":     true,
+		"--disable_audit":      true,
+		"--disable_watchdog":   true,
+		"--enable_monitor":     true,
+		"--force":              true,
+		"--allow_unsafe":       true,
+	}
+
+	if strings.HasPrefix(sanitized, "--") && !osqueryArgs[sanitized] {
+		return "", errors.New("invalid osquery argument")
+	}
+
 	return sanitized, nil
 }
+
 func splitWindowsCommand(cmd string) []string {
 	var parts []string
 	var current string

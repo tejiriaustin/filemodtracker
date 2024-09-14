@@ -1,6 +1,7 @@
 package server
 
 import (
+	"reflect"
 	"runtime"
 	"testing"
 )
@@ -9,22 +10,23 @@ func TestValidateAndSanitizeCommand(t *testing.T) {
 	tests := []struct {
 		name           string
 		input          string
-		expectedOutput string
+		expectedOutput []string
 		expectError    bool
 		onlyOS         string
 	}{
-		{"Empty command", "", "", true, ""},
-		{"Simple valid command", "ls", "ls", false, "unix"},
-		{"Valid command with args", "ls -l /home", "ls -l /home", false, "unix"},
-		{"Valid Windows command", "dir C:\\Users", "dir C:\\Users", false, "windows"},
-		{"Command with spaces", "echo Hello World", "echo Hello World", false, ""},
-		{"Command with quotes", `echo "Hello World"`, `echo Hello World`, false, ""},
-		{"Sanitize special chars", "ls file@with#special&chars.txt", "ls filewithspecialchars.txt", false, "unix"},
-		{"Path traversal attempt", "cat ../../../etc/passwd", "", true, "unix"},
-		{"Disallowed command", "rm -rf /", "", true, "unix"},
-		{"Windows disallowed command", "del C:\\Windows\\System32", "", true, "windows"},
-		{"Command with multiple spaces", "ps   aux", "ps aux", false, "unix"},
-		{"Complex Windows command", `dir "C:\Program Files" /s`, `dir "C:\Program Files" /s`, false, "windows"},
+		{"Empty command", "", nil, true, ""},
+		{"Simple valid command", "ls", []string{"ls"}, false, "unix"},
+		{"Valid command with args", "ls -l /home", []string{"ls", "-l", "/home"}, false, "unix"},
+		{"Valid Windows command", "dir C:\\Users", []string{"dir", "C:\\Users"}, false, "windows"},
+		{"Command with spaces", "echo Hello World", []string{"echo", "Hello", "World"}, false, ""},
+		{"Sanitize special chars", "ls file@with#special&chars.txt", []string{"ls", "filewithspecialchars.txt"}, false, "unix"},
+		{"Path traversal attempt", "cat ../../../etc/passwd", nil, true, "unix"},
+		{"Disallowed command", "rm -rf /", nil, true, "unix"},
+		{"Windows disallowed command", "del C:\\Windows\\System32", nil, true, "windows"},
+		{"Command with multiple spaces", "ps   aux", []string{"ps", "aux"}, false, "unix"},
+		{"Complex Windows command", `dir "C:\Program Files" /s`, []string{"dir", "C:\\Program Files", "/s"}, false, "windows"},
+		{"Command with osquery args", "osqueryi --verbose --json", []string{"osqueryi", "--verbose", "--json"}, false, ""},
+		{"Command with invalid osquery arg", "osqueryi --invalid", nil, true, ""},
 	}
 
 	for _, tt := range tests {
@@ -41,8 +43,8 @@ func TestValidateAndSanitizeCommand(t *testing.T) {
 			if !tt.expectError && err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}
-			if output != tt.expectedOutput {
-				t.Errorf("Expected output %q, but got %q", tt.expectedOutput, output)
+			if !reflect.DeepEqual(output, tt.expectedOutput) {
+				t.Errorf("Expected output %v, but got %v", tt.expectedOutput, output)
 			}
 		})
 	}
@@ -60,6 +62,8 @@ func TestSanitizeArgument(t *testing.T) {
 		{"Path traversal attempt", "../../../etc/passwd", "", true},
 		{"Argument with allowed special chars", "file-name_1.2.3", "file-name_1.2.3", false},
 		{"Empty argument", "", "", false},
+		{"Valid osquery argument", "--verbose", "--verbose", false},
+		{"Invalid osquery argument", "--invalid", "", true},
 	}
 
 	for _, tt := range tests {
@@ -100,13 +104,8 @@ func TestSplitWindowsCommand(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := splitWindowsCommand(tt.input)
 
-			if len(output) != len(tt.expectedOutput) {
-				t.Errorf("Expected %d parts, but got %d", len(tt.expectedOutput), len(output))
-			}
-			for i := range output {
-				if output[i] != tt.expectedOutput[i] {
-					t.Errorf("Part %d: expected %q, but got %q", i+1, tt.expectedOutput[i], output[i])
-				}
+			if !reflect.DeepEqual(output, tt.expectedOutput) {
+				t.Errorf("Expected %v, but got %v", tt.expectedOutput, output)
 			}
 		})
 	}

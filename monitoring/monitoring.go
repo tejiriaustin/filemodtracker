@@ -1,14 +1,16 @@
 package monitoring
 
-import "context"
+import (
+	"time"
+)
 
 type (
 	Monitor interface {
-		Querier
-		StartMonitoring(tableName string, columnDefinitions map[string]string, opts ...Options) error
-		StartConfigServer(configName string, GenerateConfigs func(ctx context.Context) (map[string]string, error)) error
-	}
-	Querier interface {
-		Query(query string) ([]map[string]string, error)
+		Start() error
+		Close() error
+		Wait() error
+		GetFileEvents() ([]map[string]interface{}, error)
+		GetFileEventsByPath(path string, since time.Time) ([]map[string]interface{}, error)
+		GetFileChangesSummary(since time.Time) ([]map[string]interface{}, error)
 	}
 )

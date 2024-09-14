@@ -3,12 +3,9 @@
 package cmd
 
 import (
-	"log"
-
 	"github.com/spf13/cobra"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
-	"github.com/tejiriaustin/savannah-assessment/monitoring"
 	"github.com/tejiriaustin/savannah-assessment/ui"
 )
 
@@ -18,18 +15,7 @@ var uiCmd = &cobra.Command{
 	Short: "StartMonitoring the File Modification Tracker UI",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.GetConfig()
-
-		if err := monitoring.EnsureOsqueryExists(cfg.OsquerySocket, cfg.MonitorDir); err != nil {
-			log.Fatalf("Failed to ensure osquery is monitoring file events: %v", err)
-		}
-
-		monitorClient, err := monitoring.New("file_events", cfg.OsquerySocket)
-		if err != nil {
-			log.Fatalf("failed to create monitoring client: %v", err)
-			return
-		}
-
-		ui.Start(cfg, monitorClient)
+		ui.Start(cfg)
 	},
 }
 

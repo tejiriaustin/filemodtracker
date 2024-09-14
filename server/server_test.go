@@ -6,12 +6,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
+	"github.com/tejiriaustin/savannah-assessment/daemon"
 )
 
 // MockMonitor is a mock implementation of the monitoring.Monitor interface
@@ -19,9 +21,34 @@ type MockMonitor struct {
 	mock.Mock
 }
 
-func (m *MockMonitor) Query(query string) ([]map[string]string, error) {
-	args := m.Called(query)
-	return args.Get(0).([]map[string]string), args.Error(1)
+func (m *MockMonitor) Start() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *MockMonitor) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *MockMonitor) Wait() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *MockMonitor) GetFileEvents() ([]map[string]interface{}, error) {
+	args := m.Called()
+	return args.Get(0).([]map[string]interface{}), args.Error(0)
+}
+
+func (m *MockMonitor) GetFileEventsByPath(path string, since time.Time) ([]map[string]interface{}, error) {
+	args := m.Called(path, since)
+	return args.Get(0).([]map[string]interface{}), args.Error(1)
+}
+
+func (m *MockMonitor) GetFileChangesSummary(since time.Time) ([]map[string]interface{}, error) {
+	args := m.Called(since)
+	return args.Get(0).([]map[string]interface{}), args.Error(1)
 }
 
 func TestNew(t *testing.T) {
@@ -29,6 +56,7 @@ func TestNew(t *testing.T) {
 	server := New(cfg)
 	assert.NotNil(t, server)
 	assert.Equal(t, cfg, server.cfg)
+	assert.Equal(t, ":8080", server.server.Addr)
 }
 
 func TestServer_Endpoints(t *testing.T) {
@@ -36,10 +64,10 @@ func TestServer_Endpoints(t *testing.T) {
 
 	mockMonitor := new(MockMonitor)
 	mockEvents := []map[string]string{{"dummy_event": "some_event"}}
-	mockMonitor.On("Query", "SELECT * FROM file_events LIMIT 100").Return(mockEvents, nil)
+	mockMonitor.On("GetFileEvents").Return(mockEvents, nil)
 
-	cmdChan := make(chan string, 1)
-	server := &Server{}
+	cmdChan := make(chan daemon.Command, 1)
+	server := &Server{cfg: &config.Config{}}
 	router := server.setupRouter(mockMonitor, cmdChan)
 
 	tests := []struct {
@@ -59,13 +87,6 @@ func TestServer_Endpoints(t *testing.T) {
 			expectedBody:   map[string]interface{}{"status": "alive and well"},
 		},
 		{
-			name:           "Retrieve Events",
-			method:         "GET",
-			url:            "/events",
-			expectedStatus: http.StatusOK,
-			expectedBody:   []interface{}{map[string]interface{}{"dummy_event": "some_event"}},
-		},
-		{
 			name:           "Valid Command",
 			method:         "POST",
 			url:            "/command",
@@ -73,7 +94,9 @@ func TestServer_Endpoints(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			expectedBody:   map[string]interface{}{"status": "command received"},
 			validateFunc: func(t *testing.T, w *httptest.ResponseRecorder) {
-				assert.Equal(t, "ls -l", <-cmdChan)
+				cmd := <-cmdChan
+				assert.Equal(t, "ls", cmd.Command)
+				assert.Equal(t, []string{"-l"}, cmd.Args)
 			},
 		},
 		{
@@ -128,9 +151,9 @@ func TestServer_Endpoints(t *testing.T) {
 }
 
 func TestServer_setupRouter(t *testing.T) {
-	server := &Server{}
+	server := &Server{cfg: &config.Config{}}
 	mockMonitor := new(MockMonitor)
-	cmdChan := make(chan string, 1)
+	cmdChan := make(chan daemon.Command, 1)
 
 	router := server.setupRouter(mockMonitor, cmdChan)
 

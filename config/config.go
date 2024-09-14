@@ -17,8 +17,7 @@ type Config struct {
 	MonitorDir     string        `mapstructure:"monitor_dir"`
 	CheckFrequency time.Duration `mapstructure:"check_frequency"`
 	Timeout        time.Duration `mapstructure:"timeout"`
-	OsquerySocket  string        `mapstructure:"osquery_socket"`
-	DataDir        string        `mapstructure:"data_dir"`
+	OsqueryConfig  string        `mapstructure:"osquery_config"`
 	ApiEndpoint    string        `mapstructure:"api_endpoint"`
 }
 
@@ -36,13 +35,12 @@ func InitConfig(validator *validator.Validate) func() {
 		viper.AddConfigPath("$HOME/.filemodtracker")
 		viper.AddConfigPath("/etc/filemodtracker")
 
-		viper.SetDefault("port", ":8080")
-		viper.SetDefault("monitor_dir", ".")
+		viper.SetDefault("port", ":80")
+		viper.SetDefault("monitor_dir", "/Users/%%")
 		viper.SetDefault("check_frequency", "1m")
 		viper.SetDefault("timeout", "1m")
-		viper.SetDefault("api_endpoint", "http://localhost:8080/api/report")
-		viper.SetDefault("osquery_socket", "/Users/tejiriodiase/.osquery/shell.em51768")
-		viper.SetDefault("data_dir", ".data")
+		viper.SetDefault("api_endpoint", "http://localhost:80")
+		viper.SetDefault("osquery_config", "osquery_fim.conf")
 
 		if err := viper.ReadInConfig(); err != nil {
 			var configFileNotFoundError viper.ConfigFileNotFoundError

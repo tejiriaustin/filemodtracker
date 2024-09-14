@@ -42,12 +42,12 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Check the status of the File Modification Tracker daemon",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Checking File Modification Tracker daemon status...")
-		fmt.Println("\nCurrent configuration:")
-		fmt.Printf("Monitor directory: %s\n", viper.GetString("monitor_dir"))
-		fmt.Printf("Check frequency: %s\n", viper.GetDuration("check_frequency"))
-		fmt.Printf("API endpoint: %s\n", viper.GetString("api_endpoint"))
-		fmt.Printf("Osquery socket: %s\n", viper.GetString("osquery_socket"))
+		cfg := config.GetConfig()
+		if cfg.PidFile != "" {
+			fmt.Printf("Status: Running")
+		} else {
+			fmt.Printf("Status: Stopped")
+		}
 	},
 }
 
