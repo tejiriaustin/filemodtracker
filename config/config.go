@@ -18,7 +18,6 @@ type Config struct {
 	CheckFrequency time.Duration `mapstructure:"check_frequency"`
 	Timeout        time.Duration `mapstructure:"timeout"`
 	OsqueryConfig  string        `mapstructure:"osquery_config"`
-	ApiEndpoint    string        `mapstructure:"api_endpoint"`
 }
 
 var appConfig Config

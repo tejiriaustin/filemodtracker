@@ -12,15 +12,14 @@ The application uses a YAML configuration file. By default, it looks for `config
 
 ## Configuration Options
 
-| Option | Description | Default Value |
-|--------|-------------|---------------|
-| `port` | The port on which the application's HTTP server listens | ":8080" |
-| `monitor_dir` | The directory to monitor for file modifications | "." (current directory) |
-| `check_frequency` | How often to check for file modifications | "1m" (1 minute) |
-| `timeout` | Timeout for operations | "1m" (1 minute) |
-| `api_endpoint` | Endpoint for remote reporting | "http://localhost:8080/api/report" |
-| `osquery_socket` | Path to the osquery socket | "/Users/tejiriodiase/.osquery/shell.em51768" |
-| `data_dir` | Directory for storing application data | ".data" |
+| Option            | Description                                             | Default Value                   |
+|-------------------|---------------------------------------------------------|---------------------------------|
+| `port`            | The port on which the application's HTTP server listens | ":8080"                         |
+| `monitor_dir`     | The directory to monitor for file modifications         | "/Users/%%" (current directory) |
+| `check_frequency` | How often to check for file modifications               | "1m" (1 minute)                 |
+| `timeout`         | Timeout for operations                                  | "1m" (1 minute)                 |
+| `port`            | Port for remote reporting                               | ":80"                           |
+| `osquery_config`  | Path to the osquery socket                              | "/osquery_fim.conf"             |
 
 ## Changing Configuration
 

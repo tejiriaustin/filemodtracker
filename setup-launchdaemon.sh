@@ -1,42 +1,27 @@
 #!/bin/bash
 
-# Path to your executable
-# This will be set by the package installer
-EXECUTABLE_PATH="$2/Contents/MacOS/filemodtracker"
+# Explicitly copy the executable
+cp /private/tmp/filemodtracker /usr/local/bin/filemodtracker
 
-# Name for your launch daemon
-DAEMON_NAME="com.savannahtech.filemodtracker"
+# Set correct permissions for the executable
+chmod 755 /usr/local/bin/filemodtracker
 
-# Create plist file
-cat << EOF > /Library/LaunchDaemons/${DAEMON_NAME}.plist
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>${DAEMON_NAME}</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>${EXECUTABLE_PATH}</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/${DAEMON_NAME}.stdout</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/${DAEMON_NAME}.stderr</string>
-</dict>
-</plist>
-EOF
+# Load and start the daemon
+launchctl load /Library/LaunchDaemons/com.example.filemodtracker.daemon.plist
+launchctl start com.example.filemodtracker.daemon
 
-# Set correct permissions
-chown root:wheel /Library/LaunchDaemons/${DAEMON_NAME}.plist
-chmod 644 /Library/LaunchDaemons/${DAEMON_NAME}.plist
+# Copy the UI launchd plist to all existing user LaunchAgents folders
+for userDir in /Users/*; do
+    if [ -d "$userDir" ]; then
+        username=$(basename "$userDir")
+        mkdir -p "$userDir/Library/LaunchAgents"
+        cp /Library/LaunchAgents/com.example.filemodtracker.ui.plist "$userDir/Library/LaunchAgents/"
+        chown "$username:staff" "$userDir/Library/LaunchAgents/com.example.filemodtracker.ui.plist"
+    fi
+done
 
-# Load the launch daemon
-launchctl load /Library/LaunchDaemons/${DAEMON_NAME}.plist
+# Load the UI launchd job for the current console user
+currentUser=$(/usr/bin/stat -f "%Su" /dev/console)
+su - "$currentUser" -c "launchctl load ~/Library/LaunchAgents/com.example.filemodtracker.ui.plist"
 
-echo "Launch daemon has been created and loaded."
-echo "Your application will now run with elevated privileges at system startup."
+exit 0

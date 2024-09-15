@@ -4,9 +4,7 @@ This guide will walk you through the process of installing and uninstalling the 
 
 ## Installation
 
-## Installation
-
-1. Download the `FileModTracker_Installer.pkg` file.
+1. Download the `FileModTracker_Installer2.pkg` file.
 
 2. Double-click the `.pkg` file to start the installation process.
 
@@ -14,9 +12,14 @@ This guide will walk you through the process of installing and uninstalling the 
 
 4. Once installed, the application will be available as `filemodtracker` in your terminal.
 
-5. To start the service, run:
+5. To start the daemon, run:
    ```
-   sudo filemodtracker start
+   sudo filemodtracker daemon
+   ```
+
+6. To start the daemon, run:
+   ```
+   filemodtracker ui
    ```
 
 ## Configuration

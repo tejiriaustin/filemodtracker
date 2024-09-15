@@ -116,6 +116,7 @@ func (c *OsQueryFIMClient) Start() error {
 		"--database_path="+c.databasePath,
 		"--disable_events=false",
 		"--enable_file_events=true",
+		"--force",
 		"--json")
 
 	var err error
