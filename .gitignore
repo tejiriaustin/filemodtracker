@@ -1,5 +1,8 @@
 .DS_Store
 .idea
 .env
-
 dist/
+/.git/
+/.idea/
+filemodtracker
+FileModTracker_Source.zip
