@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -99,13 +98,13 @@ func (c *OsQueryFIMClient) createConfig() error {
 //}
 
 func (c *OsQueryFIMClient) Start() error {
-	if err := c.createConfig(); err != nil {
-		return fmt.Errorf("failed to create config: %w", err)
-	}
-
-	if err := os.MkdirAll(filepath.Dir(c.databasePath), 0755); err != nil {
-		return fmt.Errorf("failed to create database directory: %w", err)
-	}
+	//if err := c.createConfig(); err != nil {
+	//	return fmt.Errorf("failed to create config: %w", err)
+	//}
+	//
+	//if err := os.MkdirAll(filepath.Dir(c.databasePath), 0755); err != nil {
+	//	return fmt.Errorf("failed to create database directory: %w", err)
+	//}
 
 	//if err := c.clearDatabaseLock(); err != nil {
 	//	return err

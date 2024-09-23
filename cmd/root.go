@@ -79,9 +79,9 @@ var configSetCmd = &cobra.Command{
 }
 
 func init() {
-	validator := validator.New()
+	validate := validator.New()
 
-	cobra.OnInitialize(config.InitConfig(validator))
+	cobra.OnInitialize(config.InitConfig(validate))
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
 

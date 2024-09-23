@@ -4,20 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"fyne.io/fyne/v2/dialog"
-	"image/color"
 	"io/ioutil"
 	"net/http"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
-	"sync"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -25,26 +23,9 @@ import (
 )
 
 var (
-	mu sync.Mutex
+	startButton *widget.Button
+	stopButton  *widget.Button
 )
-
-type darkTheme struct{}
-
-func (d darkTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
-	return theme.DefaultTheme().Color(name, theme.VariantDark)
-}
-
-func (d darkTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
-	return theme.DefaultTheme().Icon(name)
-}
-
-func (d darkTheme) Font(style fyne.TextStyle) fyne.Resource {
-	return theme.DefaultTheme().Font(style)
-}
-
-func (d darkTheme) Size(name fyne.ThemeSizeName) float32 {
-	return theme.DefaultTheme().Size(name)
-}
 
 func Start(cfg *config.Config) {
 	a := app.New()
@@ -69,35 +50,27 @@ func Start(cfg *config.Config) {
 		table.SetColumnWidth(i, 150)
 	}
 
-	status := widget.NewLabel("Service Status: Running")
-	monitorDirLabel := widget.NewLabel(fmt.Sprintf("Monitoring Directory: %s", cfg.MonitorDir))
+	status := widget.NewLabel(fmt.Sprintf("Service Status: , %s", checkServiceStatus()))
+	monitorDirLabel := widget.NewLabel(fmt.Sprintf("Monitoring Directory: %s", cfg.MonitoredDirectory))
 	checkFreqLabel := widget.NewLabel(fmt.Sprintf("Check Frequency: %s", cfg.CheckFrequency))
 
-	execPath := filepath.Join(filepath.Dir(cfg.ConfigPath))
-
-	startButton := widget.NewButtonWithIcon("Start Monitoring", theme.MediaPlayIcon(), func() {
+	startButton = widget.NewButtonWithIcon("Start Monitoring", theme.MediaPlayIcon(), func() {
 		go func() {
-			if requestRootAccess(w) {
-				startService(status, execPath)
-				periodicLogRefresh(table, cfg.Port)
-				periodicStatusCheck(status, execPath)
-			} else {
-				status.SetText("Service Status: Root access denied")
-			}
+			startService(w, status)
+			periodicLogRefresh(table, cfg.Port)
+			periodicStatusCheck(status)
 		}()
 	})
 	startButton.Importance = widget.HighImportance
 
-	stopButton := widget.NewButtonWithIcon("Stop Service", theme.MediaStopIcon(), func() {
+	stopButton = widget.NewButtonWithIcon("Stop Service", theme.MediaStopIcon(), func() {
 		go func() {
-			if requestRootAccess(w) {
-				stopService(status, execPath)
-			} else {
-				status.SetText("Service Status: Root access denied")
-			}
+			stopService(w, status)
 		}()
 	})
 	stopButton.Importance = widget.DangerImportance
+
+	updateButtonStates(checkServiceStatus())
 
 	refreshLogsButton := widget.NewButtonWithIcon("Refresh Logs", theme.ViewRefreshIcon(), func() {
 		refreshLogs(table, cfg.Port)
@@ -118,61 +91,86 @@ func Start(cfg *config.Config) {
 	w.ShowAndRun()
 }
 
-func requestRootAccess(w fyne.Window) bool {
-	// Check if we're running on macOS
-	if runtime.GOOS != "darwin" {
-		dialog.ShowError(fmt.Errorf("root access request is only supported on macOS"), w)
-		return false
-	}
-
-	cmd := exec.Command("osascript", "-e", `do shell script "echo Root access granted" with administrator privileges`)
-
-	err := cmd.Run()
-	if err != nil {
-		dialog.ShowError(fmt.Errorf("failed to obtain root access: %v", err), w)
-		return false
-	}
-
-	dialog.ShowInformation("Root Access", "Root access granted successfully", w)
-	return true
-}
-
-func startService(status *widget.Label, execPath string) {
+func startService(w fyne.Window, status *widget.Label) {
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
+	case "darwin":
+		script := `do shell script "filemodtracker daemon" with administrator privileges`
+		cmd = exec.Command("osascript", "-e", script)
 	case "windows":
-		cmd = exec.Command("powershell", "-Command", "Start-Process", filepath.Join(execPath, "filemodtracker.exe"), "start", "-Verb", "runAs")
-	case "darwin", "linux":
-		cmd = exec.Command("sudo", "bash", "-c", fmt.Sprintf("nohup %s start > /dev/null 2>&1 &", filepath.Join(execPath, "filemodtracker")))
+		cmd = exec.Command("powershell", "-Command", "Start-Process", "filemodtracker", "daemon", "-Verb", "runAs")
+	case "linux":
+		cmd = exec.Command("pkexec", "filemodtracker", "daemon")
 	default:
-		status.SetText(fmt.Sprintf("Service Status: Unsupported operating system: %s", runtime.GOOS))
+		dialog.ShowError(fmt.Errorf("unsupported operating system: %s", runtime.GOOS), w)
 		return
 	}
 
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	err := cmd.Run()
+	err := cmd.Start()
 	if err != nil {
-		status.SetText(fmt.Sprintf("Service Status: Failed to start - %v", err))
+		errMsg := fmt.Sprintf("Failed to start service: %v", err)
+		status.SetText("Service Status: " + errMsg)
+		dialog.ShowError(fmt.Errorf(errMsg), w)
 	} else {
-		status.SetText("Service Status: Started in background")
+		status.SetText("Service Status: Starting...")
+		updateButtonStates("Starting")
+		go func() {
+			err = cmd.Wait()
+			if err != nil {
+				errMsg := fmt.Sprintf("Service exited with error: %v", err)
+				status.SetText("Service Status: " + errMsg)
+				dialog.ShowError(fmt.Errorf(errMsg), w)
+			}
+			currentStatus := checkServiceStatus()
+			status.SetText("Service Status: " + currentStatus)
+			updateButtonStates(currentStatus)
+		}()
 	}
 }
 
-func stopService(status *widget.Label, execPath string) {
-	cmd := exec.Command("sudo", "filemodtracker", "stop")
-	err := cmd.Run()
+func stopService(w fyne.Window, status *widget.Label) {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "darwin":
+		script := `do shell script "filemodtracker stop" with administrator privileges`
+		cmd = exec.Command("osascript", "-e", script)
+	case "windows":
+		cmd = exec.Command("powershell", "-Command", "Start-Process", "filemodtracker", "stop", "-Verb", "runAs")
+	case "linux":
+		cmd = exec.Command("pkexec", "filemodtracker", "stop")
+	default:
+		dialog.ShowError(fmt.Errorf("unsupported operating system: %s", runtime.GOOS), w)
+		return
+	}
+
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		status.SetText(fmt.Sprintf("Service Status: Failed to stop - %v", err))
+		errMsg := fmt.Sprintf("Failed to stop service: %v output: %s", err, string(output))
+		status.SetText("Service Status: " + errMsg)
+		dialog.ShowError(fmt.Errorf(errMsg), w)
 	} else {
-		status.SetText("Service Status: Stopped")
+		status.SetText("Service Status: Stopping...")
+		go func() {
+			err = cmd.Wait()
+			if err != nil {
+				errMsg := fmt.Sprintf("Service exited with error: %v", err)
+				status.SetText("Service Status: " + errMsg)
+				dialog.ShowError(fmt.Errorf(errMsg), w)
+			} else {
+				status.SetText("Service Status: Stopping...")
+				updateButtonStates("Stopping")
+				currentStatus := checkServiceStatus()
+				status.SetText("Service Status: " + currentStatus)
+				updateButtonStates(currentStatus)
+			}
+		}()
 	}
 }
 
-func checkServiceStatus(execPath string) string {
-	cmd := exec.Command("filemodtracker", "daemon", "status")
+func checkServiceStatus() string {
+	cmd := exec.Command("filemodtracker", "status")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -183,11 +181,12 @@ func checkServiceStatus(execPath string) string {
 	return out.String()
 }
 
-func periodicStatusCheck(status *widget.Label, execPath string) {
+func periodicStatusCheck(status *widget.Label) {
 	ticker := time.NewTicker(5 * time.Second)
 	for range ticker.C {
-		currentStatus := checkServiceStatus(execPath)
+		currentStatus := checkServiceStatus()
 		status.SetText("Service Status: " + currentStatus)
+		updateButtonStates(currentStatus)
 	}
 }
 
@@ -270,5 +269,27 @@ func periodicLogRefresh(table *widget.Table, port string) {
 	ticker := time.NewTicker(10 * time.Second)
 	for range ticker.C {
 		refreshLogs(table, port)
+	}
+}
+
+func updateButtonStates(status string) {
+	status = strings.ToLower(status)
+	switch {
+	case strings.Contains(status, "running"):
+		startButton.Disable()
+		stopButton.Enable()
+	case strings.Contains(status, "starting"):
+		startButton.Disable()
+		stopButton.Disable()
+	case strings.Contains(status, "stopped"):
+		startButton.Enable()
+		stopButton.Disable()
+	case strings.Contains(status, "stopping"):
+		startButton.Disable()
+		stopButton.Disable()
+	default:
+		// If status is unknown, enable both buttons
+		startButton.Enable()
+		stopButton.Enable()
 	}
 }

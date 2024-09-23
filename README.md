@@ -1,105 +1,135 @@
 # File Modification Tracker
 
-This project is a File Modification Tracker implemented in Go, designed to run as a background service. It tracks and records modifications to files in a specified directory, integrates system monitoring via osquery, and provides configuration management.
+This project is a File Modification Tracker implemented in Go, designed to run as a background service on macOS. It tracks and records modifications to files in a specified directory, integrates system monitoring via osquery, and provides a simple UI for interaction.
 
 ## Prerequisites
 
+- macOS (tested on macOS Mojave and later)
 - Go (version 1.20 or later)
 - osquery
-- make (for running Makefile commands)
+- Homebrew (for easy installation of dependencies)
 
 ## Installation
 
-1. Clone the repository:
+1. Install osquery using Homebrew:
    ```
-   git clone https://github.com/tejiriaustin/filemodtracker.git
-   cd filemodtracker
-   ```
-
-2. Build the project:
-   ```
-   make build
+   brew install osquery
    ```
 
-## Usage
+2. Verify osquery installation:
+   ```
+   osqueryi --version
+   ```
 
-### Running the Service and UI
+3. Install the File Modification Tracker:
+   ```
+   sudo installer -pkg FileModTracker.pkg -target /
+   ```
 
-To run both the service and UI components:
-
-```
-make run
-```
-
-### Running Only the Service
-
-To run only the background service:
-
-```
-make run-service
-```
-
-### Running Only the UI
-
-To run only the UI component:
-
-```
-make run-ui
-```
-
-## Development
-
-### Building
-
-To build the project:
-
-```
-make build
-```
-
-### Cleaning
-
-To clean the build artifacts and Go mod cache:
-
-```
-make clean
-```
-
-### Testing
-
-To run tests with coverage:
-
-```
-make test
-```
-
-### Mocking
-
-To generate mocks for testing:
-
-```
-make mocks
-```
-
-To remove existing mocks:
-
-```
-make rm-mocks
-```
-
-## Project Structure
-
-- `cmd/`: Entry points for running commands from the command-line.
-- `config/`: Handles configuration management using viper.
-- `daemon/`: Contains the implementation of the background service.
-- `monitoring/`: Implements file monitoring logic, potentially using osquery.
-- `server/`: The entry point of the application.
-- `ui/`: Contains the implementation of the UI component.
-- `main.go`: The entry point of the application.
+4. Verify the installation:
+   ```
+   ls /usr/local/bin/filemodtracker
+   ```
 
 ## Configuration
 
-The project uses a configuration file to manage service settings. Ensure you have a properly configured file before running the service.
+1. Open the configuration file:
+   ```
+   sudo nano /usr/local/etc/filemodtracker/config.yaml
+   ```
+
+2. Update the following settings:
+   ```yaml
+   monitored_directory: "/Users/username/Documents/filemodtest"
+   check_frequency: 60  # in seconds
+   api_endpoint: "http://localhost:8000"  # or your desired endpoint
+   ```
+
+3. Save and exit (Ctrl+X, Y, Enter)
+
+## Usage
+
+### Starting the Service
+
+1. Load the service:
+   ```
+   sudo launchctl load /Library/LaunchDaemons/com.example.filemodtracker.plist
+   ```
+
+2. Verify it's running:
+   ```
+   launchctl list | grep filemodtracker
+   ```
+
+### Using the File Modification Tracker
+
+1. Create, modify, or delete files in the monitored directory:
+   ```
+   echo "Hello, world!" > ~/Documents/filemodtest/testfile.txt
+   echo "New content" >> ~/Documents/filemodtest/testfile.txt
+   rm ~/Documents/filemodtest/testfile.txt
+   ```
+
+2. View the logs:
+   ```
+   cat /var/log/filemodtracker.log
+   ```
+
+### HTTP Endpoints
+
+- Health check:
+  ```
+  curl http://localhost:8080/health
+  ```
+- Send commands to the worker thread:
+  ```
+  curl -X POST -H "Content-Type: application/json" -d '{"commands":["echo Hello", "ls -l"]}' http://localhost:8080/commands
+  ```
+- Retrieve logs:
+  ```
+  curl http://localhost:8080/logs
+  ```
+
+### UI Interaction
+
+Use the provided AppleScript to interact with the service:
+
+1. Open Script Editor and paste the provided script
+2. Run the script to start, stop, or view logs
+
+### osquery Integration
+
+Run osquery commands to get file information:
+```
+osqueryi "SELECT * FROM file WHERE path = '/Users/username/Documents/filemodtest/testfile.txt'"
+```
+
+## Uninstallation
+
+To uninstall the service:
+```
+sudo /usr/local/bin/uninstall_filemodtracker.sh
+```
+
+## Troubleshooting
+
+If you encounter issues with osquery:
+
+1. Check Homebrew's information about osquery:
+   ```
+   brew info osquery
+   ```
+
+2. Try relinking osquery:
+   ```
+   brew link osquery
+   ```
+
+3. If issues persist, reinstall osquery:
+   ```
+   brew uninstall osquery
+   brew install osquery
+   ```
 
 ## Contributing
 
@@ -111,6 +141,6 @@ The project uses a configuration file to manage service settings. Ensure you hav
 
 ## Contact
 
-Your Name - tejiiaustin123@example.com
+Tejiri Austin - tejiiaustin123@example.com
 
 Project Link: [https://github.com/tejiriaustin/filemodtracker](https://github.com/tejiriaustin/filemodtracker)

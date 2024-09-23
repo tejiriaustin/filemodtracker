@@ -11,13 +11,12 @@ import (
 )
 
 type Config struct {
-	ConfigPath     string
-	PidFile        string
-	Port           string        `mapstructure:"port"`
-	MonitorDir     string        `mapstructure:"monitor_dir"`
-	CheckFrequency time.Duration `mapstructure:"check_frequency"`
-	Timeout        time.Duration `mapstructure:"timeout"`
-	OsqueryConfig  string        `mapstructure:"osquery_config"`
+	ConfigPath         string
+	PidFile            string
+	Port               string        `mapstructure:"port"`
+	MonitoredDirectory string        `mapstructure:"monitored_directory"`
+	CheckFrequency     time.Duration `mapstructure:"check_frequency"`
+	OsqueryConfig      string        `mapstructure:"osquery_config"`
 }
 
 var appConfig Config
@@ -33,11 +32,11 @@ func InitConfig(validator *validator.Validate) func() {
 		viper.AddConfigPath(".")
 		viper.AddConfigPath("$HOME/.filemodtracker")
 		viper.AddConfigPath("/etc/filemodtracker")
+		viper.AddConfigPath("/usr/local/etc/filemodtracker")
 
 		viper.SetDefault("port", ":80")
-		viper.SetDefault("monitor_dir", "/Users/%%")
+		viper.SetDefault("monitored_directory", "/Users/%%")
 		viper.SetDefault("check_frequency", "1m")
-		viper.SetDefault("timeout", "1m")
 		viper.SetDefault("api_endpoint", "http://localhost:80")
 		viper.SetDefault("osquery_config", "osquery_fim.conf")
 

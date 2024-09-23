@@ -3,11 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
+	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -42,7 +44,7 @@ func startDaemonService(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	monitorClient, err := monitoring.New(cfg.OsqueryConfig, monitoring.WithMonitorDirs([]string{cfg.MonitorDir}))
+	monitorClient, err := monitoring.New(cfg.OsqueryConfig, monitoring.WithMonitorDirs([]string{cfg.MonitoredDirectory}))
 	if err != nil {
 		log.Fatalf("failed to create monitoring client: %v", err)
 		return
@@ -143,36 +145,60 @@ func startDaemon(ctx context.Context, cfg *config.Config, monitorClient monitori
 }
 
 func stopDaemon(cmd *cobra.Command, args []string) {
-	cfg := config.GetConfig()
+	switch runtime.GOOS {
+	case "darwin", "linux":
+		stopUnixDaemon()
+	case "windows":
+		stopWindowsDaemon()
+	default:
+		fmt.Printf("Unsupported operating system: %s\n", runtime.GOOS)
+		os.Exit(1)
+	}
+}
 
-	pidBytes, err := ioutil.ReadFile(cfg.PidFile)
+func stopUnixDaemon() {
+	// Option 1: Using pkill
+	pkillCmd := exec.Command("pkill", "-f", "filemodtracker daemon")
+	if err := pkillCmd.Run(); err != nil {
+		fmt.Printf("Failed to stop daemon using pkill: %v\n", err)
+		// Fallback to Option 2 if pkill fails
+		stopUsingPgrep()
+	} else {
+		fmt.Println("Daemon stopped successfully using pkill.")
+	}
+}
+
+func stopUsingPgrep() {
+	// Option 2: Using pgrep and kill
+	pgrepCmd := exec.Command("pgrep", "-f", "filemodtracker daemon")
+	output, err := pgrepCmd.Output()
 	if err != nil {
-		fmt.Printf("Error reading PID file: %v\n", err)
+		fmt.Printf("Failed to find daemon process: %v\n", err)
 		os.Exit(1)
 	}
 
-	pid, err := strconv.Atoi(string(pidBytes))
-	if err != nil {
-		fmt.Printf("Error parsing PID: %v\n", err)
+	pids := strings.Fields(string(output))
+	if len(pids) == 0 {
+		fmt.Println("No running daemon found.")
+		return
+	}
+
+	for _, pid := range pids {
+		killCmd := exec.Command("kill", pid)
+		if err := killCmd.Run(); err != nil {
+			fmt.Printf("Failed to stop daemon process %s: %v\n", pid, err)
+		} else {
+			fmt.Printf("Sent termination signal to process %s\n", pid)
+		}
+	}
+	fmt.Println("Daemon stop command executed.")
+}
+
+func stopWindowsDaemon() {
+	cmd := exec.Command("taskkill", "/F", "/IM", "filemodtracker.exe")
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Failed to stop daemon: %v\n", err)
 		os.Exit(1)
 	}
-
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		fmt.Printf("Error finding process: %v\n", err)
-		os.Exit(1)
-	}
-
-	err = process.Signal(syscall.SIGTERM)
-	if err != nil {
-		fmt.Printf("Error sending termination signal: %v\n", err)
-		os.Exit(1)
-	}
-
-	err = os.Remove(cfg.PidFile)
-	if err != nil {
-		fmt.Printf("Warning: Unable to remove PID file: %v\n", err)
-	}
-
 	fmt.Println("Daemon stopped successfully.")
 }
