@@ -4,7 +4,7 @@ This guide will walk you through the process of installing and uninstalling the 
 
 ## Installation
 
-1. Download the `FileModTracker_Installer2.pkg` file.
+1. Download the `osquery` installer and the `FileModTracker.pkg` file.
 
 2. Double-click the `.pkg` file to start the installation process.
 

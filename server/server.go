@@ -143,7 +143,7 @@ func (s *Server) executeCommand() gin.HandlerFunc {
 		command.Stderr = &out
 		err = command.Run()
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("command execution failed: %v, output: %s", err, out.String())})
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("command execution failed: %v, output: %s", err, out.String())})
 			return
 		}
 

@@ -57,6 +57,7 @@ func isAllowedCommand(cmd string) bool {
 		"osqueryi": true, "osqueryd": true,
 		"dir": true, "type": true, "findstr": true,
 		"tasklist": true, "systeminfo": true, "chkdsk": true,
+		"pwd": true,
 	}
 
 	return allowedCommands[cmd]

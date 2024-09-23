@@ -276,20 +276,15 @@ func updateButtonStates(status string) {
 	status = strings.ToLower(status)
 	switch {
 	case strings.Contains(status, "running"):
-		startButton.Disable()
 		stopButton.Enable()
 	case strings.Contains(status, "starting"):
-		startButton.Disable()
 		stopButton.Disable()
 	case strings.Contains(status, "stopped"):
-		startButton.Enable()
 		stopButton.Disable()
 	case strings.Contains(status, "stopping"):
-		startButton.Disable()
 		stopButton.Disable()
 	default:
 		// If status is unknown, enable both buttons
-		startButton.Enable()
 		stopButton.Enable()
 	}
 }
