@@ -79,15 +79,15 @@ This project is a File Modification Tracker implemented in Go, designed to run a
 
 - Health check:
   ```
-  curl http://localhost:8080/health
+  curl http://localhost:80/health
   ```
 - Send commands to the worker thread:
   ```
-  curl -X POST -H "Content-Type: application/json" -d '{"commands":["echo Hello", "ls -l"]}' http://localhost:8080/commands
+  curl -X POST -H "Content-Type: application/json" -d '{"commands":["echo Hello", "ls -l"]}' http://localhost:80/commands
   ```
 - Retrieve logs:
   ```
-  curl http://localhost:8080/logs
+  curl http://localhost:80/logs
   ```
 
 ### UI Interaction

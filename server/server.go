@@ -1,13 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"errors"
-	"github.com/tejiriaustin/savannah-assessment/daemon"
-	"github.com/tejiriaustin/savannah-assessment/monitoring"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -15,6 +16,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
+	"github.com/tejiriaustin/savannah-assessment/daemon"
+	"github.com/tejiriaustin/savannah-assessment/monitoring"
 )
 
 type Server struct {
@@ -62,6 +65,7 @@ func (s *Server) setupRouter(monitor monitoring.Monitor, cmdChan chan<- daemon.C
 	r.GET("/health", s.healthCheck())
 	r.GET("/events", s.retrieveEvents(monitor))
 	r.POST("/command", s.receiveCommand(cmdChan))
+	r.POST("/execute", s.executeCommand())
 
 	r.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -114,5 +118,39 @@ func (s *Server) receiveCommand(cmdChan chan<- daemon.Command) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"status": "command received"})
+	}
+}
+
+func (s *Server) executeCommand() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var cmd struct {
+			Command string `json:"command" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&cmd); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		sanitizedCmd, err := validateAndSanitizeCommand(cmd.Command)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		command := exec.Command(sanitizedCmd[0], sanitizedCmd...)
+		var out bytes.Buffer
+		command.Stdout = &out
+		command.Stderr = &out
+		err = command.Run()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("command execution failed: %v, output: %s", err, out.String())})
+			return
+		}
+
+		payload := gin.H{
+			"status": "command received",
+			"output": out.String(),
+		}
+		c.JSON(http.StatusOK, payload)
 	}
 }

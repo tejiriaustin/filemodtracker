@@ -10,7 +10,6 @@ import (
 func validateAndSanitizeCommand(cmd string) ([]string, error) {
 	cmd = strings.TrimSpace(cmd)
 
-	// Basic structure check
 	if len(cmd) == 0 {
 		return nil, errors.New("empty command")
 	}
@@ -27,6 +26,17 @@ func validateAndSanitizeCommand(cmd string) ([]string, error) {
 		return nil, errors.New("base command not allowed")
 	}
 
+	if baseCmd == "osqueryi" || baseCmd == "osqueryd" {
+		if len(parts) < 2 {
+			return nil, errors.New("invalid osquery command")
+		}
+		query := strings.Join(parts[1:], " ")
+		if err := validateOsqueryQuery(query); err != nil {
+			return nil, err
+		}
+		return parts, nil
+	}
+
 	for i := 1; i < len(parts); i++ {
 		sanitized, err := sanitizeArgument(parts[i])
 		if err != nil {
@@ -41,36 +51,41 @@ func validateAndSanitizeCommand(cmd string) ([]string, error) {
 // Performing a whitelist
 // Another approach would be to blacklist some commands
 func isAllowedCommand(cmd string) bool {
-	unixCommands := map[string]bool{
+	allowedCommands := map[string]bool{
 		"ls": true, "cat": true, "grep": true, "echo": true,
 		"ps": true, "top": true, "df": true, "du": true,
-		"osqueryi": true,
-		"osqueryd": true,
-		// May need t0 add more Linux commands here
-	}
-	windowsCommands := map[string]bool{
-		"dir": true, "type": true, "findstr": true, "echo": true,
+		"osqueryi": true, "osqueryd": true,
+		"dir": true, "type": true, "findstr": true,
 		"tasklist": true, "systeminfo": true, "chkdsk": true,
-		"osqueryi": true,
-		"osqueryd": true,
-		// May need to add more Windows commands here
 	}
 
-	if runtime.GOOS == "windows" {
-		return windowsCommands[cmd]
+	return allowedCommands[cmd]
+}
+
+func validateOsqueryQuery(query string) error {
+	query = strings.TrimSpace(strings.ToUpper(query))
+	if !strings.HasPrefix(query, "SELECT") {
+		return errors.New("only SELECT statements are allowed for osquery")
 	}
-	return unixCommands[cmd]
+
+	// Basic validation to prevent obvious SQL injection attempts
+	dangerousKeywords := []string{"INSERT", "UPDATE", "DELETE", "DROP", "TRUNCATE", "ALTER", "--"}
+	for _, keyword := range dangerousKeywords {
+		if strings.Contains(query, keyword) {
+			return errors.New("potentially dangerous osquery statement")
+		}
+	}
+
+	return nil
 }
 
 func sanitizeArgument(arg string) (string, error) {
-	// Remove any characters that aren't alphanumeric, underscore, hyphen, period, or forward slash
 	reg, err := regexp.Compile(`[^a-zA-Z0-9_\-./\\]+`)
 	if err != nil {
 		return "", err
 	}
 	sanitized := reg.ReplaceAllString(arg, "")
 
-	// Prevent path traversal attempts
 	if strings.Contains(sanitized, "..") {
 		return "", errors.New("invalid argument: potential path traversal")
 	}
