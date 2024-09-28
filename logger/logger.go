@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"errors"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -10,11 +12,16 @@ type Logger struct {
 }
 
 type Config struct {
-	LogLevel string
-	DevMode  bool
+	DevMode     bool
+	LogLevel    string
+	ServiceName string
 }
 
 func NewLogger(config Config) (*Logger, error) {
+	if config.ServiceName == "" {
+		return nil, errors.New("application name cannot be empty")
+	}
+
 	level, err := zapcore.ParseLevel(config.LogLevel)
 	if err != nil {
 		return nil, err
@@ -33,7 +40,14 @@ func NewLogger(config Config) (*Logger, error) {
 		zapConfig.EncoderConfig = zap.NewDevelopmentEncoderConfig()
 	}
 
-	zapLogger, err := zapConfig.Build()
+	zapLogger, err := zapConfig.Build(
+		zap.AddCaller(),
+		zap.AddStacktrace(zapcore.ErrorLevel),
+		zap.AddCallerSkip(1),
+		zap.Fields(
+			zap.String("service_name", config.ServiceName),
+		),
+	)
 	if err != nil {
 		return nil, err
 	}
