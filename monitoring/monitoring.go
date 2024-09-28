@@ -1,12 +1,13 @@
 package monitoring
 
 import (
+	"context"
 	"time"
 )
 
 type (
 	Monitor interface {
-		Start() error
+		Start(ctx context.Context) error
 		Close() error
 		Wait() error
 		GetFileEvents() ([]map[string]interface{}, error)

@@ -38,9 +38,8 @@ var statusCmd = &cobra.Command{
 		cfg := config.GetConfig()
 		if cfg.PidFile != "" {
 			fmt.Printf("Status: Running")
-		} else {
-			fmt.Printf("Status: Stopped")
 		}
+		fmt.Printf("Status: Stopped")
 	},
 }
 
@@ -73,9 +72,8 @@ var configSetCmd = &cobra.Command{
 		err := viper.WriteConfig()
 		if err != nil {
 			fmt.Printf("Error writing config: %v\n", err)
-		} else {
-			fmt.Printf("Set %s to %s\n", key, value)
 		}
+		fmt.Printf("Set %s to %s\n", key, value)
 	},
 }
 

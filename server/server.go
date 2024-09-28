@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -33,7 +32,7 @@ func New(cfg *config.Config) *Server {
 	}
 }
 
-func (s *Server) Start(logger *logger.Logger, monitor monitoring.Monitor, cmdChan chan<- daemon.Command) {
+func (s *Server) Start(logger *logger.Logger, monitor monitoring.Monitor, cmdChan chan<- daemon.Command) error {
 	router := s.setupRouter(monitor, cmdChan)
 
 	srv := &http.Server{
@@ -41,23 +40,35 @@ func (s *Server) Start(logger *logger.Logger, monitor monitoring.Monitor, cmdCha
 		Handler: router,
 	}
 
+	errChan := make(chan error, 1)
+	quit := make(chan os.Signal, 1)
+
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Errorf("listen: %s\n", err)
+			logger.Errorf("Server error: %s\n", err)
+			errChan <- err
 		}
 	}()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	select {
+	case <-quit:
+		logger.Info("Shutdown signal received")
+	case err := <-errChan:
+		return fmt.Errorf("server error: %w", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown: ", err)
+		logger.Errorf("Server forced to shutdown: %s", err)
+		return err
 	}
 
-	log.Println("Server exiting")
+	logger.Info("Server gracefully stopped")
+	return nil
 }
 
 func (s *Server) setupRouter(monitor monitoring.Monitor, cmdChan chan<- daemon.Command) *gin.Engine {
@@ -87,7 +98,7 @@ func (s *Server) healthCheck() gin.HandlerFunc {
 
 func (s *Server) retrieveEvents(monitor monitoring.Monitor) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		query, err := monitor.GetFileEvents(c)
+		query, err := monitor.GetFileEvents()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

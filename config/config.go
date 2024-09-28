@@ -46,12 +46,11 @@ func InitConfig(validator *validator.Validate, log *logger.Logger) func() {
 			var configFileNotFoundError viper.ConfigFileNotFoundError
 			if errors.As(err, &configFileNotFoundError) {
 				log.Warn("No config file found. Using defaults.")
-			} else {
-				log.Error("Error reading config file", "error", err)
 			}
-		} else {
-			log.Info("Config file used", "path", viper.ConfigFileUsed())
+			log.Error("Error reading config file", "error", err)
 		}
+
+		log.Info("Config file used", "path", viper.ConfigFileUsed())
 
 		if err := viper.Unmarshal(&appConfig); err != nil {
 			log.Error("Unable to decode config into struct", "error", err)

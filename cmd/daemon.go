@@ -53,7 +53,7 @@ func startDaemonService(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	monitorClient, err := monitoring.NewOsQueryFIMClient(cfg.OsquerySocket)
+	monitorClient, err := monitoring.New(cfg.OsquerySocket, monitoring.WithLogger(log))
 	if err != nil {
 		log.Error("Failed to create monitoring client", "error", err)
 		return
@@ -104,39 +104,29 @@ func startDaemonService(cmd *cobra.Command, args []string) {
 	log.Info("Daemon service stopped")
 }
 
-func startServer(ctx context.Context, log *logger.Logger, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan chan daemon.Command) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Info("Server shutting down")
-			return
-		default:
-			s := server.New(cfg)
-			s.Start(log, monitorClient, cmdChan)
-		}
+func startServer(ctx context.Context, log *logger.Logger, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan chan daemon.Command) error {
+	s := server.New(cfg)
+	if err := s.Start(log, monitorClient, cmdChan); err != nil {
+		return err
 	}
+
+	<-ctx.Done()
+	log.Info("Server shutting down")
+	return nil
 }
 
-func startDaemon(ctx context.Context, log *logger.Logger, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan <-chan daemon.Command) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Info("Daemon shutting down")
-			return
-		default:
-			d, err := daemon.New(cfg, log, monitorClient, cmdChan)
-			if err != nil {
-				log.Error("Failed to create daemon", "error", err)
-				return
-			}
-
-			go func() {
-				if err := d.StartDaemon(ctx); err != nil {
-					log.Error("Failed to start daemon", "error", err)
-				}
-			}()
-		}
+func startDaemon(ctx context.Context, log *logger.Logger, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan <-chan daemon.Command) error {
+	d, err := daemon.New(cfg, log, monitorClient, cmdChan)
+	if err != nil {
+		log.Error("Failed to create daemon", "error", err)
+		return err
 	}
+
+	if err := d.StartDaemon(ctx); err != nil {
+		log.Error("Failed to start daemon", "error", err)
+		return err
+	}
+	return nil
 }
 
 func stopDaemon(cmd *cobra.Command, args []string) {
@@ -166,9 +156,8 @@ func stopUnixDaemon(log *logger.Logger) {
 	if err := pkillCmd.Run(); err != nil {
 		log.Warn("Failed to stop daemon using pkill", "error", err)
 		stopUsingPgrep(log)
-	} else {
-		log.Info("Daemon stopped successfully using pkill")
 	}
+	log.Info("Daemon stopped successfully using pkill")
 }
 
 func stopUsingPgrep(log *logger.Logger) {
