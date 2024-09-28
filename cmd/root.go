@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/tejiriaustin/savannah-assessment/logger"
 	"os"
 
 	"github.com/go-playground/validator/v10"
@@ -81,7 +82,22 @@ var configSetCmd = &cobra.Command{
 func init() {
 	validate := validator.New()
 
-	cobra.OnInitialize(config.InitConfig(validate))
+	logCfg := logger.Config{
+		LogLevel: "info",
+		DevMode:  true,
+	}
+	log, err := logger.NewLogger(logCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer func(log *logger.Logger) {
+		err := log.Sync()
+		if err != nil {
+			log.Errorf("Failed to create logger: %v", err)
+		}
+	}(log)
+
+	cobra.OnInitialize(config.InitConfig(validate, log))
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
 

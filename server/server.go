@@ -17,6 +17,7 @@ import (
 
 	"github.com/tejiriaustin/savannah-assessment/config"
 	"github.com/tejiriaustin/savannah-assessment/daemon"
+	"github.com/tejiriaustin/savannah-assessment/logger"
 	"github.com/tejiriaustin/savannah-assessment/monitoring"
 )
 
@@ -32,7 +33,7 @@ func New(cfg *config.Config) *Server {
 	}
 }
 
-func (s *Server) Start(monitor monitoring.Monitor, cmdChan chan<- daemon.Command) {
+func (s *Server) Start(logger *logger.Logger, monitor monitoring.Monitor, cmdChan chan<- daemon.Command) {
 	router := s.setupRouter(monitor, cmdChan)
 
 	srv := &http.Server{
@@ -42,7 +43,7 @@ func (s *Server) Start(monitor monitoring.Monitor, cmdChan chan<- daemon.Command
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("listen: %s\n", err)
+			logger.Errorf("listen: %s\n", err)
 		}
 	}()
 
@@ -86,7 +87,7 @@ func (s *Server) healthCheck() gin.HandlerFunc {
 
 func (s *Server) retrieveEvents(monitor monitoring.Monitor) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		query, err := monitor.GetFileEvents()
+		query, err := monitor.GetFileEvents(c)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

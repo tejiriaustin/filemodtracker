@@ -2,17 +2,20 @@ package daemon
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	"log"
 	"os/exec"
 	"time"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
+	"github.com/tejiriaustin/savannah-assessment/logger"
 	"github.com/tejiriaustin/savannah-assessment/monitoring"
 )
 
 type (
 	Daemon struct {
+		logger      *logger.Logger
+		ticker      *time.Ticker
 		cfg         *config.Config
 		fileTracker monitoring.Monitor
 		cmdChan     <-chan Command
@@ -28,37 +31,44 @@ func newDaemon() *Daemon {
 	return &Daemon{}
 }
 
-func New(cfg *config.Config, fileTracker monitoring.Monitor, cmdChan <-chan Command) (*Daemon, error) {
+func New(cfg *config.Config, logger *logger.Logger, fileTracker monitoring.Monitor, cmdChan <-chan Command) (*Daemon, error) {
 	d := newDaemon()
 	d.cfg = cfg
 	d.fileTracker = fileTracker
 	d.cmdChan = cmdChan
+	d.logger = logger
 
 	return d, nil
 }
 
-func (d *Daemon) StartDaemon() error {
-	//execPath := filepath.Join(filepath.Dir(daemon.cfg.ConfigPath))
+func (d *Daemon) StartDaemon(ctx context.Context) error {
+	d.logger.Info("Starting daemon...")
 
-	if err := d.fileTracker.Start(); err != nil {
-		log.Fatalf("Failed to start file_events logging: %v", err)
-		return err
-	}
+	d.ticker = time.NewTicker(10 * time.Second)
+	defer d.ticker.Stop()
 
 	for {
-		time.Sleep(10 * time.Second)
-
-		log.Println("Checking for new commands...")
-
 		select {
-		case cmd := <-d.cmdChan:
-			err := d.executeCommand(cmd)
-			if err != nil {
-				log.Printf("Error executing command: %v\n", err)
+		case <-ctx.Done():
+			d.logger.Info("Daemon stopping due to context cancellation")
+			return ctx.Err()
+		case <-d.ticker.C:
+			d.logger.Debug("Performing periodic check")
+			if err := d.performPeriodicTasks(); err != nil {
+				d.logger.Error("Error during periodic tasks", "error", err)
 			}
-		default:
+		case cmd := <-d.cmdChan:
+			d.logger.Info("Received command", "command", cmd)
+			if err := d.executeCommand(cmd); err != nil {
+				d.logger.Error("Error executing command", "error", err)
+			}
 		}
 	}
+}
+
+func (d *Daemon) performPeriodicTasks() error {
+	d.logger.Debug("Performing periodic tasks")
+	return nil
 }
 
 func (d *Daemon) executeCommand(cmd Command) error {
@@ -70,6 +80,6 @@ func (d *Daemon) executeCommand(cmd Command) error {
 	if err != nil {
 		return fmt.Errorf("command execution failed: %v, output: %s", err, out.String())
 	}
-	log.Printf("Command executed successfully. Output: %s", out.String())
+	d.logger.Infof("Command executed successfully. Output: %s", out.String())
 	return nil
 }

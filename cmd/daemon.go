@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -18,6 +16,7 @@ import (
 
 	"github.com/tejiriaustin/savannah-assessment/config"
 	"github.com/tejiriaustin/savannah-assessment/daemon"
+	"github.com/tejiriaustin/savannah-assessment/logger"
 	"github.com/tejiriaustin/savannah-assessment/monitoring"
 	"github.com/tejiriaustin/savannah-assessment/server"
 )
@@ -35,24 +34,28 @@ func init() {
 func startDaemonService(cmd *cobra.Command, args []string) {
 	cfg := config.GetConfig()
 
+	logCfg := logger.Config{
+		LogLevel: "info",
+		DevMode:  true,
+	}
+	log, err := logger.NewLogger(logCfg)
+	if err != nil {
+		log.Errorf("Failed to create logger: %v", err)
+	}
+	defer log.Sync()
+
 	if err := os.WriteFile(cfg.PidFile, []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
-		log.Fatalf("Failed to write PID file: %v", err)
+		log.Fatal("Failed to write PID file", "error", err)
 	}
 	defer func() {
 		if err := os.Remove(cfg.PidFile); err != nil {
-			log.Printf("Failed to remove PID file: %v", err)
+			log.Error("Failed to remove PID file", "error", err)
 		}
 	}()
 
-	monitorClient, err := monitoring.New(cfg.OsqueryConfig, monitoring.WithMonitorDirs([]string{cfg.MonitoredDirectory}))
+	monitorClient, err := monitoring.NewOsQueryFIMClient(cfg.OsquerySocket)
 	if err != nil {
-		log.Fatalf("failed to create monitoring client: %v", err)
-		return
-	}
-
-	err = monitorClient.Start()
-	if err != nil {
-		log.Fatalf("failed to start monitoring client: %v", err)
+		log.Error("Failed to create monitoring client", "error", err)
 		return
 	}
 
@@ -67,13 +70,13 @@ func startDaemonService(cmd *cobra.Command, args []string) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		startServer(ctx, cfg, monitorClient, cmdChan)
+		startServer(ctx, log, cfg, monitorClient, cmdChan)
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		startDaemon(ctx, cfg, monitorClient, cmdChan)
+		startDaemon(ctx, log, cfg, monitorClient, cmdChan)
 	}()
 
 	sigChan := make(chan os.Signal, 1)
@@ -81,124 +84,123 @@ func startDaemonService(cmd *cobra.Command, args []string) {
 
 	<-sigChan
 
-	log.Println("Shutdown signal received")
+	log.Info("Shutdown signal received")
 
 	cancel()
 
 	waitChan := make(chan struct{})
 	go func() {
-		if err := monitorClient.Wait(); err != nil {
-			fmt.Printf("osqueryi process exited with error: %v\n", err)
-			return
-		}
-		if err := monitorClient.Close(); err != nil {
-			fmt.Printf("osqueryi process exited with error: %v\n", err)
-			return
-		}
-
 		wg.Wait()
 		close(waitChan)
 	}()
 
 	select {
 	case <-waitChan:
-		log.Println("All goroutines finished")
+		log.Info("All goroutines finished")
 	case <-time.After(3 * time.Second):
-		log.Println("Shutdown timed out")
+		log.Warn("Shutdown timed out")
 	}
 
-	log.Println("Daemon service stopped")
+	log.Info("Daemon service stopped")
 }
 
-func startServer(ctx context.Context, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan chan daemon.Command) {
+func startServer(ctx context.Context, log *logger.Logger, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan chan daemon.Command) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("Server shutting down")
+			log.Info("Server shutting down")
 			return
 		default:
-
 			s := server.New(cfg)
-			s.Start(monitorClient, cmdChan)
+			s.Start(log, monitorClient, cmdChan)
 		}
 	}
 }
 
-func startDaemon(ctx context.Context, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan <-chan daemon.Command) {
+func startDaemon(ctx context.Context, log *logger.Logger, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan <-chan daemon.Command) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("Server shutting down")
+			log.Info("Daemon shutting down")
 			return
 		default:
-			d, err := daemon.New(cfg, monitorClient, cmdChan)
+			d, err := daemon.New(cfg, log, monitorClient, cmdChan)
 			if err != nil {
-				log.Fatalf("Failed to create daemon: %v", err)
+				log.Error("Failed to create daemon", "error", err)
 				return
 			}
 
-			if err := d.StartDaemon(); err != nil {
-				log.Fatalf("Failed to start daemon: %v", err)
-			}
+			go func() {
+				if err := d.StartDaemon(ctx); err != nil {
+					log.Error("Failed to start daemon", "error", err)
+				}
+			}()
 		}
 	}
 }
 
 func stopDaemon(cmd *cobra.Command, args []string) {
+	logCfg := logger.Config{
+		LogLevel: "info",
+		DevMode:  true,
+	}
+	log, err := logger.NewLogger(logCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer log.Sync()
+
 	switch runtime.GOOS {
 	case "darwin", "linux":
-		stopUnixDaemon()
+		stopUnixDaemon(log)
 	case "windows":
-		stopWindowsDaemon()
+		stopWindowsDaemon(log)
 	default:
-		fmt.Printf("Unsupported operating system: %s\n", runtime.GOOS)
+		log.Error("Unsupported operating system", "os", runtime.GOOS)
 		os.Exit(1)
 	}
 }
 
-func stopUnixDaemon() {
-	// Option 1: Using pkill
+func stopUnixDaemon(log *logger.Logger) {
 	pkillCmd := exec.Command("pkill", "-f", "filemodtracker daemon")
 	if err := pkillCmd.Run(); err != nil {
-		fmt.Printf("Failed to stop daemon using pkill: %v\n", err)
-		// Fallback to Option 2 if pkill fails
-		stopUsingPgrep()
+		log.Warn("Failed to stop daemon using pkill", "error", err)
+		stopUsingPgrep(log)
 	} else {
-		fmt.Println("Daemon stopped successfully using pkill.")
+		log.Info("Daemon stopped successfully using pkill")
 	}
 }
 
-func stopUsingPgrep() {
-	// Option 2: Using pgrep and kill
+func stopUsingPgrep(log *logger.Logger) {
 	pgrepCmd := exec.Command("pgrep", "-f", "filemodtracker daemon")
 	output, err := pgrepCmd.Output()
 	if err != nil {
-		fmt.Printf("Failed to find daemon process: %v\n", err)
+		log.Error("Failed to find daemon process", "error", err)
 		os.Exit(1)
 	}
 
 	pids := strings.Fields(string(output))
 	if len(pids) == 0 {
-		fmt.Println("No running daemon found.")
+		log.Info("No running daemon found")
 		return
 	}
 
 	for _, pid := range pids {
 		killCmd := exec.Command("kill", pid)
 		if err := killCmd.Run(); err != nil {
-			fmt.Printf("Failed to stop daemon process %s: %v\n", pid, err)
+			log.Error("Failed to stop daemon process", "pid", pid, "error", err)
 		} else {
-			fmt.Printf("Sent termination signal to process %s\n", pid)
+			log.Info("Sent termination signal to process", "pid", pid)
 		}
 	}
-	fmt.Println("Daemon stop command executed.")
+	log.Info("Daemon stop command executed")
 }
 
-func stopWindowsDaemon() {
+func stopWindowsDaemon(log *logger.Logger) {
 	cmd := exec.Command("taskkill", "/F", "/IM", "filemodtracker.exe")
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("Failed to stop daemon: %v\n", err)
+		log.Error("Failed to stop daemon", "error", err)
 		os.Exit(1)
 	}
-	fmt.Println("Daemon stopped successfully.")
+	log.Info("Daemon stopped successfully")
 }
