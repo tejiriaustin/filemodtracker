@@ -183,7 +183,7 @@ func (c *OsQueryFIMClient) waitForStartup(ctx context.Context, readyChan chan st
 	scanner := bufio.NewScanner(c.stderr)
 	for scanner.Scan() {
 		line := scanner.Text()
-		c.log.Debug("osquery output: ", line)
+		c.log.Info("osquery output: ", line)
 
 		if strings.Contains(line, "Osquery started successfully") {
 			close(readyChan)
@@ -267,7 +267,7 @@ func (c *OsQueryFIMClient) Query(query string) ([]map[string]interface{}, error)
 		c.log.Error("Failed to execute query", "query", query, "error", err)
 		return nil, err
 	}
-	c.log.Debug("Query executed successfully", "query", query, "results_count", len(results))
+	c.log.Info("Query executed successfully", "query", query, "results_count", len(results))
 	return results, nil
 }
 

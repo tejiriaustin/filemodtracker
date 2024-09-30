@@ -4,7 +4,6 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/tejiriaustin/savannah-assessment/logger"
 	"os"
 
 	"github.com/go-playground/validator/v10"
@@ -12,10 +11,13 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
+	"github.com/tejiriaustin/savannah-assessment/logger"
 )
 
 var (
 	cfgFile string
+	log     *logger.Logger
+	err     error
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -77,25 +79,22 @@ var configSetCmd = &cobra.Command{
 	},
 }
 
+func buildLogger() {
+	logCfg := logger.Config{
+		LogLevel:    "info",
+		DevMode:     true,
+		ServiceName: "root",
+	}
+	log, err = logger.NewLogger(logCfg)
+	if err != nil {
+		panic(fmt.Errorf("failed to create logger: %v", err))
+	}
+}
+
 func init() {
 	validate := validator.New()
 
-	logCfg := logger.Config{
-		LogLevel: "info",
-		DevMode:  true,
-	}
-	log, err := logger.NewLogger(logCfg)
-	if err != nil {
-		panic(err)
-	}
-	defer func(log *logger.Logger) {
-		err := log.Sync()
-		if err != nil {
-			log.Errorf("Failed to create logger: %v", err)
-		}
-	}(log)
-
-	cobra.OnInitialize(config.InitConfig(validate, log))
+	cobra.OnInitialize(buildLogger, config.InitConfig(validate, log))
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
 

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
+	"github.com/tejiriaustin/savannah-assessment/logger"
 	"github.com/tejiriaustin/savannah-assessment/ui"
 )
 
@@ -15,7 +16,17 @@ var uiCmd = &cobra.Command{
 	Short: "StartMonitoring the File Modification Tracker UI",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.GetConfig()
-		ui.Start(cfg)
+
+		logCfg := logger.Config{
+			LogLevel:    "info",
+			DevMode:     true,
+			ServiceName: "ui",
+		}
+		uiLogger, err := logger.NewLogger(logCfg)
+		if err != nil {
+			log.Fatal("Failed to create UI logger", "error", err)
+		}
+		ui.Start(cfg, uiLogger)
 	},
 }
 

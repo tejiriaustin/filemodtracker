@@ -20,6 +20,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/tejiriaustin/savannah-assessment/config"
+	"github.com/tejiriaustin/savannah-assessment/logger"
 )
 
 var (
@@ -27,7 +28,7 @@ var (
 	stopButton  *widget.Button
 )
 
-func Start(cfg *config.Config) {
+func Start(cfg *config.Config, logger *logger.Logger) {
 	a := app.New()
 	a.Settings().SetTheme(&darkTheme{})
 	w := a.NewWindow("File Modification Tracker")

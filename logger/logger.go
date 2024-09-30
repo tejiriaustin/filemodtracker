@@ -1,61 +1,54 @@
 package logger
 
 import (
-	"errors"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 type Logger struct {
-	*zap.SugaredLogger
+	*zap.Logger
 }
 
 type Config struct {
-	DevMode     bool
 	LogLevel    string
+	DevMode     bool
 	ServiceName string
 }
 
-func NewLogger(config Config) (*Logger, error) {
-	if config.ServiceName == "" {
-		return nil, errors.New("application name cannot be empty")
+func NewLogger(cfg Config) (*Logger, error) {
+	var zapCfg zap.Config
+	if cfg.DevMode {
+		zapCfg = zap.NewDevelopmentConfig()
+	} else {
+		zapCfg = zap.NewProductionConfig()
 	}
 
-	level, err := zapcore.ParseLevel(config.LogLevel)
+	level, err := zapcore.ParseLevel(cfg.LogLevel)
+	if err != nil {
+		return nil, err
+	}
+	zapCfg.Level = zap.NewAtomicLevelAt(level)
+
+	logger, err := zapCfg.Build(zap.Fields(zap.String("service", cfg.ServiceName)))
 	if err != nil {
 		return nil, err
 	}
 
-	zapConfig := zap.Config{
-		Encoding:         "json",
-		Level:            zap.NewAtomicLevelAt(level),
-		OutputPaths:      []string{"stdout"},
-		ErrorOutputPaths: []string{"stderr"},
-		EncoderConfig:    zap.NewProductionEncoderConfig(),
-	}
-
-	if config.DevMode {
-		zapConfig.Encoding = "console"
-		zapConfig.EncoderConfig = zap.NewDevelopmentEncoderConfig()
-	}
-
-	zapLogger, err := zapConfig.Build(
-		zap.AddCaller(),
-		zap.AddStacktrace(zapcore.ErrorLevel),
-		zap.AddCallerSkip(1),
-		zap.Fields(
-			zap.String("service_name", config.ServiceName),
-		),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	sugar := zapLogger.Sugar()
-	return &Logger{sugar}, nil
+	return &Logger{Logger: logger}, nil
 }
 
-func (l *Logger) Sync() error {
-	return l.SugaredLogger.Sync()
+func (l *Logger) Info(msg string, fields ...interface{}) {
+	l.Logger.Sugar().Infow(msg, fields...)
+}
+
+func (l *Logger) Error(msg string, fields ...interface{}) {
+	l.Logger.Sugar().Errorw(msg, fields...)
+}
+
+func (l *Logger) Fatal(msg string, fields ...interface{}) {
+	l.Logger.Sugar().Fatalw(msg, fields...)
+}
+
+func (l *Logger) Warn(msg string, fields ...interface{}) {
+	l.Logger.Sugar().Warnw(msg, fields...)
 }

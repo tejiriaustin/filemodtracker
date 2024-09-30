@@ -50,36 +50,50 @@ func (d *Daemon) StartDaemon(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			d.logger.Info("Daemon stopping due to context cancellation")
-			return ctx.Err()
+			d.logger.Info("daemon stopping due to context cancellation")
+			return nil
 		case <-d.ticker.C:
 			d.logger.Debug("Performing periodic check")
-			if err := d.performPeriodicTasks(); err != nil {
-				d.logger.Error("Error during periodic tasks", "error", err)
-			}
-		case cmd := <-d.cmdChan:
+			cmd := <-d.cmdChan
 			d.logger.Info("Received command", "command", cmd)
 			if err := d.executeCommand(cmd); err != nil {
-				d.logger.Error("Error executing command", "error", err)
+				return fmt.Errorf("error executing command: %v", err)
 			}
 		}
 	}
 }
 
-func (d *Daemon) performPeriodicTasks() error {
-	d.logger.Debug("Performing periodic tasks")
-	return nil
-}
-
 func (d *Daemon) executeCommand(cmd Command) error {
 	command := exec.Command(cmd.Command, cmd.Args...)
-	var out bytes.Buffer
-	command.Stdout = &out
-	command.Stderr = &out
+	var stdout, stderr bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+
 	err := command.Run()
+
+	stdoutStr := stdout.String()
+	stderrStr := stderr.String()
+
 	if err != nil {
-		return fmt.Errorf("command execution failed: %v, output: %s", err, out.String())
+		d.logger.Error("Command execution failed",
+			"error", err,
+			"stdout", stdoutStr,
+			"stderr", stderrStr,
+			"command", cmd.Command,
+			"args", cmd.Args,
+		)
+		return fmt.Errorf("command execution failed: %v, stdout: %s, stderr: %s", err, stdoutStr, stderrStr)
 	}
-	d.logger.Infof("Command executed successfully. Output: %s", out.String())
+
+	if stdoutStr != "" {
+		d.logger.Info("Command executed successfully", "stdout", stdoutStr)
+	} else {
+		d.logger.Info("Command executed successfully (no output)")
+	}
+
+	if stderrStr != "" {
+		d.logger.Warn("Command produced stderr output", "stderr", stderrStr)
+	}
+
 	return nil
 }

@@ -23,16 +23,18 @@ import (
 type Server struct {
 	cfg    *config.Config
 	server *http.Server
+	logger *logger.Logger
 }
 
-func New(cfg *config.Config) *Server {
+func New(cfg *config.Config, logger *logger.Logger) *Server {
 	return &Server{
 		cfg:    cfg,
 		server: &http.Server{Addr: cfg.Port},
+		logger: logger,
 	}
 }
 
-func (s *Server) Start(logger *logger.Logger, monitor monitoring.Monitor, cmdChan chan<- daemon.Command) error {
+func (s *Server) Start(monitor monitoring.Monitor, cmdChan chan<- daemon.Command) error {
 	router := s.setupRouter(monitor, cmdChan)
 
 	srv := &http.Server{
@@ -47,14 +49,14 @@ func (s *Server) Start(logger *logger.Logger, monitor monitoring.Monitor, cmdCha
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Errorf("Server error: %s\n", err)
+			s.logger.Error("Server error: %s", err)
 			errChan <- err
 		}
 	}()
 
 	select {
 	case <-quit:
-		logger.Info("Shutdown signal received")
+		s.logger.Info("Shutdown signal received")
 	case err := <-errChan:
 		return fmt.Errorf("server error: %w", err)
 	}
@@ -63,16 +65,20 @@ func (s *Server) Start(logger *logger.Logger, monitor monitoring.Monitor, cmdCha
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.Errorf("Server forced to shutdown: %s", err)
+		s.logger.Error("Server forced to shutdown: %s", err)
 		return err
 	}
 
-	logger.Info("Server gracefully stopped")
+	s.logger.Info("Server gracefully stopped")
 	return nil
 }
 
 func (s *Server) setupRouter(monitor monitoring.Monitor, cmdChan chan<- daemon.Command) *gin.Engine {
-	r := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+
+	r.Use(s.loggerMiddleware())
+	r.Use(gin.Recovery())
 
 	r.GET("/health", s.healthCheck())
 	r.GET("/events", s.retrieveEvents(monitor))

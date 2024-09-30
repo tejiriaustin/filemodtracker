@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -33,80 +34,93 @@ func init() {
 
 func startDaemonService(cmd *cobra.Command, args []string) {
 	cfg := config.GetConfig()
+	log.Info("Starting File Modification Tracker daemon")
 
-	logCfg := logger.Config{
-		LogLevel: "info",
-		DevMode:  true,
-	}
-	log, err := logger.NewLogger(logCfg)
-	if err != nil {
-		log.Errorf("Failed to create logger: %v", err)
-	}
-	defer log.Sync()
-
-	if err := os.WriteFile(cfg.PidFile, []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
+	if err := writePIDFile(cfg.PidFile); err != nil {
 		log.Fatal("Failed to write PID file", "error", err)
 	}
-	defer func() {
-		if err := os.Remove(cfg.PidFile); err != nil {
-			log.Error("Failed to remove PID file", "error", err)
-		}
-	}()
+	defer removePIDFile(cfg.PidFile)
 
 	monitorClient, err := monitoring.New(cfg.OsquerySocket, monitoring.WithLogger(log))
 	if err != nil {
-		log.Error("Failed to create monitoring client", "error", err)
-		return
+		log.Fatal("Failed to create monitoring client", "error", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var (
-		wg      = sync.WaitGroup{}
+		wg      sync.WaitGroup
+		errChan = make(chan error, 2)
 		cmdChan = make(chan daemon.Command, 100)
 	)
 
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		startServer(ctx, log, cfg, monitorClient, cmdChan)
+		if err := startServer(ctx, log, cfg, monitorClient, cmdChan); err != nil {
+			errChan <- fmt.Errorf("server error: %w", err)
+		}
 	}()
 
-	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		startDaemon(ctx, log, cfg, monitorClient, cmdChan)
+		if err := startDaemon(ctx, log, cfg, monitorClient, cmdChan); err != nil {
+			errChan <- fmt.Errorf("daemon error: %w", err)
+		}
+	}()
+
+	go func() {
+		wg.Wait()
+		close(errChan)
 	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	<-sigChan
-
-	log.Info("Shutdown signal received")
+	select {
+	case err := <-errChan:
+		if err != nil {
+			log.Error("Error in daemon service", "error", err)
+		}
+	case sig := <-sigChan:
+		log.Info("Shutdown signal received", "signal", sig)
+	}
 
 	cancel()
 
-	waitChan := make(chan struct{})
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+
+	done := make(chan struct{})
 	go func() {
 		wg.Wait()
-		close(waitChan)
+		close(done)
 	}()
 
 	select {
-	case <-waitChan:
+	case <-done:
 		log.Info("All goroutines finished")
-	case <-time.After(3 * time.Second):
-		log.Warn("Shutdown timed out")
+	case <-shutdownCtx.Done():
+		log.Info("Shutdown timed out")
 	}
 
 	log.Info("Daemon service stopped")
 }
 
+func writePIDFile(pidFile string) error {
+	return os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0644)
+}
+
+func removePIDFile(pidFile string) {
+	if err := os.Remove(pidFile); err != nil {
+		log.Error("Failed to remove PID file", "error", err)
+	}
+}
+
 func startServer(ctx context.Context, log *logger.Logger, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan chan daemon.Command) error {
-	s := server.New(cfg)
-	if err := s.Start(log, monitorClient, cmdChan); err != nil {
+	s := server.New(cfg, log)
+	if err := s.Start(monitorClient, cmdChan); err != nil {
 		return err
 	}
 
@@ -119,27 +133,17 @@ func startDaemon(ctx context.Context, log *logger.Logger, cfg *config.Config, mo
 	d, err := daemon.New(cfg, log, monitorClient, cmdChan)
 	if err != nil {
 		log.Error("Failed to create daemon", "error", err)
-		return err
+		return fmt.Errorf("failed to create daemon: %v", err)
 	}
 
 	if err := d.StartDaemon(ctx); err != nil {
 		log.Error("Failed to start daemon", "error", err)
-		return err
+		return fmt.Errorf("failed to start daemon: %v", err)
 	}
 	return nil
 }
 
 func stopDaemon(cmd *cobra.Command, args []string) {
-	logCfg := logger.Config{
-		LogLevel: "info",
-		DevMode:  true,
-	}
-	log, err := logger.NewLogger(logCfg)
-	if err != nil {
-		panic(err)
-	}
-	defer log.Sync()
-
 	switch runtime.GOOS {
 	case "darwin", "linux":
 		stopUnixDaemon(log)

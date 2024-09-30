@@ -26,7 +26,7 @@ func GetConfig() *Config {
 	return &appConfig
 }
 
-func InitConfig(validator *validator.Validate, log *logger.Logger) func() {
+func InitConfig(validator *validator.Validate, logger *logger.Logger) func() {
 	return func() {
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
@@ -45,25 +45,20 @@ func InitConfig(validator *validator.Validate, log *logger.Logger) func() {
 		if err := viper.ReadInConfig(); err != nil {
 			var configFileNotFoundError viper.ConfigFileNotFoundError
 			if errors.As(err, &configFileNotFoundError) {
-				log.Warn("No config file found. Using defaults.")
+				logger.Warn("No config file found. Using defaults.")
 			}
-			log.Error("Error reading config file", "error", err)
 		}
 
-		log.Info("Config file used", "path", viper.ConfigFileUsed())
-
 		if err := viper.Unmarshal(&appConfig); err != nil {
-			log.Error("Unable to decode config into struct", "error", err)
+			logger.Error("Unable to decode config into struct", "error", err)
 		}
 
 		if err := validator.Struct(&appConfig); err != nil {
-			log.Error("Invalid config", "error", err)
+			logger.Error("Invalid config", "error", err)
 			os.Exit(1)
 		}
 
 		appConfig.ConfigPath = viper.ConfigFileUsed()
 		appConfig.PidFile = "/var/run/filemodtracker.pid"
-
-		log.Info("Configuration initialized", "config", appConfig)
 	}
 }

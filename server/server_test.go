@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +22,7 @@ type MockMonitor struct {
 	mock.Mock
 }
 
-func (m *MockMonitor) Start() error {
+func (m *MockMonitor) Start(ctx context.Context) error {
 	args := m.Called()
 	return args.Error(0)
 }
@@ -53,7 +54,7 @@ func (m *MockMonitor) GetFileChangesSummary(since time.Time) ([]map[string]inter
 
 func TestNew(t *testing.T) {
 	cfg := &config.Config{Port: ":8080"}
-	server := New(cfg)
+	server := New(cfg, nil)
 	assert.NotNil(t, server)
 	assert.Equal(t, cfg, server.cfg)
 	assert.Equal(t, ":8080", server.server.Addr)
