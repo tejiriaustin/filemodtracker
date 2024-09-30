@@ -47,7 +47,6 @@ func startDaemonService(cmd *cobra.Command, args []string) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	var (
 		wg      sync.WaitGroup
