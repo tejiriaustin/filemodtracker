@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -20,9 +21,15 @@ type Config struct {
 	OsquerySocket      string        `mapstructure:"osquery_socket"`
 }
 
-var appConfig Config
+var (
+	appConfig     Config
+	configOnce    sync.Once
+	configRWMutex sync.RWMutex
+)
 
 func GetConfig() *Config {
+	configRWMutex.RLock()
+	defer configRWMutex.RUnlock()
 	return &appConfig
 }
 
@@ -49,6 +56,9 @@ func InitConfig(validator *validator.Validate, logger *logger.Logger) func() {
 			}
 		}
 
+		configRWMutex.Lock()
+		defer configRWMutex.Unlock()
+
 		if err := viper.Unmarshal(&appConfig); err != nil {
 			logger.Error("Unable to decode config into struct", "error", err)
 		}
@@ -61,4 +71,17 @@ func InitConfig(validator *validator.Validate, logger *logger.Logger) func() {
 		appConfig.ConfigPath = viper.ConfigFileUsed()
 		appConfig.PidFile = "/var/run/filemodtracker.pid"
 	}
+}
+
+func UpdateConfig(newConfig Config) error {
+	configRWMutex.Lock()
+	defer configRWMutex.Unlock()
+
+	validate := validator.New()
+	if err := validate.Struct(newConfig); err != nil {
+		return err
+	}
+
+	appConfig = newConfig
+	return nil
 }
