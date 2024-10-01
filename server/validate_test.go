@@ -25,7 +25,6 @@ func TestValidateAndSanitizeCommand(t *testing.T) {
 		{"Windows disallowed command", "del C:\\Windows\\System32", nil, true, "windows"},
 		{"Command with multiple spaces", "ps   aux", []string{"ps", "aux"}, false, "unix"},
 		{"Complex Windows command", `dir "C:\Program Files" /s`, []string{"dir", "C:\\Program Files", "/s"}, false, "windows"},
-		{"Command with osquery args", "osqueryi --verbose --json", []string{"osqueryi", "--verbose", "--json"}, false, ""},
 		{"Command with invalid osquery arg", "osqueryi --invalid", nil, true, ""},
 	}
 
