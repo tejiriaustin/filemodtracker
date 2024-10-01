@@ -339,10 +339,6 @@ func (c *OsQueryFIMClient) Stop() error {
 	return nil
 }
 
-func (c *OsQueryFIMClient) Wait() error {
-	return c.cmd.Wait()
-}
-
 func (c *OsQueryFIMClient) Close() error {
 	c.log.Info("Closing osquery client")
 	if err := c.Stop(); err != nil {
@@ -370,5 +366,5 @@ func (c *OsQueryFIMClient) Close() error {
 	}
 
 	c.log.Info("Osquery client closed successfully")
-	return c.Wait()
+	return nil
 }

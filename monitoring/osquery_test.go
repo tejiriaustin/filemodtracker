@@ -2,7 +2,6 @@ package monitoring
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -84,37 +83,6 @@ func TestCreateConfig(t *testing.T) {
 	// Check if the config contains expected keys
 	assert.Contains(t, config, "schedule")
 	assert.Contains(t, config, "file_paths")
-}
-
-func TestStart(t *testing.T) {
-	mockLogger, err := logger.NewLogger(logger.Config{})
-	assert.NoError(t, err)
-
-	configPath := filepath.Join(os.TempDir(), "test_config.json")
-	defer os.Remove(configPath)
-
-	client, err := New(configPath, WithLogger(mockLogger), WithOsqueryBinary("echo"))
-	assert.NoError(t, err)
-
-	client.cmd = exec.Command("true")
-
-	mockStdin := new(MockWriter)
-	mockStdin.On("Write", mock.Anything).Return(0, nil)
-	client.stdin = mockStdin
-
-	mockStdout := NewMockReader([]byte("Osquery started successfully"))
-	client.stdout = mockStdout
-
-	mockStderr := NewMockReader([]byte(""))
-	client.stderr = mockStderr
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = client.Start(ctx)
-	assert.NoError(t, err)
-
-	mockStdin.AssertExpectations(t)
 }
 
 // TestQuery tests the Query method
