@@ -2,6 +2,12 @@
 
 This project is a File Modification Tracker implemented in Go, designed to run as a background service on macOS. It tracks and records modifications to files in a specified directory, integrates system monitoring via osquery, and provides a simple UI for interaction.
 
+## Clone
+1. Clone the repository
+```
+   git clone git@github.com:tejiriaustin/filemodtracker.git
+```
+
 ## Prerequisites
 
 - macOS (tested on macOS Mojave and later)

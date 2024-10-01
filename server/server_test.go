@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/tejiriaustin/savannah-assessment/logger"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,7 +40,7 @@ func (m *MockMonitor) Wait() error {
 
 func (m *MockMonitor) GetFileEvents() ([]map[string]interface{}, error) {
 	args := m.Called()
-	return args.Get(0).([]map[string]interface{}), args.Error(0)
+	return args.Get(0).([]map[string]interface{}), args.Error(1)
 }
 
 func (m *MockMonitor) GetFileEventsByPath(path string, since time.Time) ([]map[string]interface{}, error) {
@@ -54,22 +55,27 @@ func (m *MockMonitor) GetFileChangesSummary(since time.Time) ([]map[string]inter
 
 func TestNew(t *testing.T) {
 	cfg := &config.Config{Port: ":8080"}
-	server := New(cfg, nil)
+	log := &logger.Logger{}
+	server := New(cfg, log)
 	assert.NotNil(t, server)
 	assert.Equal(t, cfg, server.cfg)
 	assert.Equal(t, ":8080", server.server.Addr)
+	assert.Equal(t, log, server.logger)
 }
-
-func TestServer_Endpoints(t *testing.T) {
+func TestHandler_Endpoints(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockMonitor := new(MockMonitor)
-	mockEvents := []map[string]string{{"dummy_event": "some_event"}}
+	mockEvents := []map[string]interface{}{{"dummy_event": "some_event"}}
 	mockMonitor.On("GetFileEvents").Return(mockEvents, nil)
 
 	cmdChan := make(chan daemon.Command, 1)
-	server := &Server{cfg: &config.Config{}}
-	router := server.setupRouter(mockMonitor, cmdChan)
+
+	newLogger, err := logger.NewLogger(logger.Config{})
+	assert.NoError(t, err)
+
+	h := NewHandler(newLogger)
+	router := h.SetupHandler(mockMonitor, cmdChan)
 
 	tests := []struct {
 		name           string
@@ -116,6 +122,13 @@ func TestServer_Endpoints(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   map[string]interface{}{"error": "base command not allowed"},
 		},
+		{
+			name:           "Retrieve Events",
+			method:         "GET",
+			url:            "/events",
+			expectedStatus: http.StatusOK,
+			expectedBody:   []interface{}{map[string]interface{}{"dummy_event": "some_event"}},
+		},
 	}
 
 	for _, tt := range tests {
@@ -152,12 +165,24 @@ func TestServer_Endpoints(t *testing.T) {
 }
 
 func TestServer_setupRouter(t *testing.T) {
-	server := &Server{cfg: &config.Config{}}
+	mockLogger, err := logger.NewLogger(logger.Config{})
+	assert.NoError(t, err)
+
+	handler := NewHandler(mockLogger)
 	mockMonitor := new(MockMonitor)
 	cmdChan := make(chan daemon.Command, 1)
 
-	router := server.setupRouter(mockMonitor, cmdChan)
+	router := handler.SetupHandler(mockMonitor, cmdChan)
 
 	assert.NotNil(t, router)
-	assert.Len(t, router.Routes(), 3)
+
+	// Check if all expected routes are set up
+	expectedRoutes := []string{"/health", "/events", "/command", "/execute"}
+	routes := router.Routes()
+
+	assert.Len(t, routes, len(expectedRoutes))
+
+	for _, route := range routes {
+		assert.Contains(t, expectedRoutes, route.Path)
+	}
 }

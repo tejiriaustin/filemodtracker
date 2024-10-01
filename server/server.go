@@ -34,12 +34,10 @@ func New(cfg *config.Config, logger *logger.Logger) *Server {
 	}
 }
 
-func (s *Server) Start(monitor monitoring.Monitor, cmdChan chan<- daemon.Command) error {
-	router := s.setupRouter(monitor, cmdChan)
-
+func (s *Server) Start(handler http.Handler) error {
 	srv := &http.Server{
 		Addr:    s.cfg.Port,
-		Handler: router,
+		Handler: handler,
 	}
 
 	errChan := make(chan error, 1)
@@ -73,17 +71,28 @@ func (s *Server) Start(monitor monitoring.Monitor, cmdChan chan<- daemon.Command
 	return nil
 }
 
-func (s *Server) setupRouter(monitor monitoring.Monitor, cmdChan chan<- daemon.Command) *gin.Engine {
+// Handler struct responsible for HTTP routing and handling
+type Handler struct {
+	logger *logger.Logger
+}
+
+func NewHandler(logger *logger.Logger) *Handler {
+	return &Handler{
+		logger: logger,
+	}
+}
+
+func (h *Handler) SetupHandler(monitor monitoring.Monitor, cmdChan chan<- daemon.Command) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
-	r.Use(s.loggerMiddleware())
+	r.Use(h.loggerMiddleware())
 	r.Use(gin.Recovery())
 
-	r.GET("/health", s.healthCheck())
-	r.GET("/events", s.retrieveEvents(monitor))
-	r.POST("/command", s.receiveCommand(cmdChan))
-	r.POST("/execute", s.executeCommand())
+	r.GET("/health", h.healthCheck())
+	r.GET("/events", h.retrieveEvents(monitor))
+	r.POST("/command", h.receiveCommand(cmdChan))
+	r.POST("/execute", h.executeCommand())
 
 	r.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -94,7 +103,7 @@ func (s *Server) setupRouter(monitor monitoring.Monitor, cmdChan chan<- daemon.C
 	return r
 }
 
-func (s *Server) healthCheck() gin.HandlerFunc {
+func (h *Handler) healthCheck() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status": "alive and well",
@@ -102,7 +111,7 @@ func (s *Server) healthCheck() gin.HandlerFunc {
 	}
 }
 
-func (s *Server) retrieveEvents(monitor monitoring.Monitor) gin.HandlerFunc {
+func (h *Handler) retrieveEvents(monitor monitoring.Monitor) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		query, err := monitor.GetFileEvents()
 		if err != nil {
@@ -113,7 +122,7 @@ func (s *Server) retrieveEvents(monitor monitoring.Monitor) gin.HandlerFunc {
 	}
 }
 
-func (s *Server) receiveCommand(cmdChan chan<- daemon.Command) gin.HandlerFunc {
+func (h *Handler) receiveCommand(cmdChan chan<- daemon.Command) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var cmd struct {
 			Command string `json:"command" binding:"required"`
@@ -139,7 +148,7 @@ func (s *Server) receiveCommand(cmdChan chan<- daemon.Command) gin.HandlerFunc {
 	}
 }
 
-func (s *Server) executeCommand() gin.HandlerFunc {
+func (h *Handler) executeCommand() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var cmd struct {
 			Command string `json:"command" binding:"required"`

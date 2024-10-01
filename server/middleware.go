@@ -5,12 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-func (s *Server) loggerMiddleware() gin.HandlerFunc {
+func (s *Handler) loggerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
@@ -38,7 +39,7 @@ func (s *Server) loggerMiddleware() gin.HandlerFunc {
 		}{
 			Level:     "info",
 			Timestamp: time.Now(),
-			Caller:    filepath.Base(file) + ":" + string(line),
+			Caller:    filepath.Base(file) + ":" + strconv.Itoa(line),
 			Msg:       "Request processed",
 			Pid:       os.Getpid(),
 			Method:    c.Request.Method,

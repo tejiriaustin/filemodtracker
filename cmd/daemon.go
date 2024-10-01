@@ -118,8 +118,11 @@ func removePIDFile(pidFile string) {
 }
 
 func startServer(ctx context.Context, log *logger.Logger, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan chan daemon.Command) error {
-	s := server.New(cfg, log)
-	if err := s.Start(monitorClient, cmdChan); err != nil {
+
+	h := server.NewHandler(log).SetupHandler(monitorClient, cmdChan)
+
+	err := server.New(cfg, log).Start(h)
+	if err != nil {
 		return err
 	}
 
@@ -164,7 +167,7 @@ func stopUnixDaemon(log *logger.Logger) {
 }
 
 func stopUsingPgrep(log *logger.Logger) {
-	pgrepCmd := exec.Command("pgrep", "-f", "filemodtracker daemon")
+	pgrepCmd := exec.Command("pgrep", "-f", "filemodtracker stop")
 	output, err := pgrepCmd.Output()
 	if err != nil {
 		log.Error("Failed to find daemon process", "error", err)
