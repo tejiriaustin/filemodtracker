@@ -96,19 +96,15 @@ func TestStart(t *testing.T) {
 	client, err := New(configPath, WithLogger(mockLogger), WithOsqueryBinary("echo"))
 	assert.NoError(t, err)
 
-	// Use a custom command that just exits successfully
 	client.cmd = exec.Command("true")
 
-	// Mock stdin
 	mockStdin := new(MockWriter)
 	mockStdin.On("Write", mock.Anything).Return(0, nil)
 	client.stdin = mockStdin
 
-	// Mock stdout
 	mockStdout := NewMockReader([]byte("Osquery started successfully"))
 	client.stdout = mockStdout
 
-	// Mock stderr
 	mockStderr := NewMockReader([]byte(""))
 	client.stderr = mockStderr
 
@@ -253,7 +249,6 @@ func TestClose(t *testing.T) {
 	client, err := New(configPath, WithLogger(mockLogger), WithOsqueryBinary("echo"))
 	assert.NoError(t, err)
 
-	// Use a custom command that just exits successfully
 	client.cmd = exec.Command("true")
 
 	mockStdin := new(MockWriter)
