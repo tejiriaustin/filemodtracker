@@ -2,11 +2,6 @@
 
 This project is a File Modification Tracker implemented in Go, designed to run as a background service on macOS. It tracks and records modifications to files in a specified directory, integrates system monitoring via osquery, and provides a simple UI for interaction.
 
-## Clone
-1. Clone the repository
-```
-   git clone git@github.com:tejiriaustin/filemodtracker.git
-```
 
 ## Prerequisites
 
@@ -15,7 +10,47 @@ This project is a File Modification Tracker implemented in Go, designed to run a
 - osquery
 - Homebrew (for easy installation of dependencies)
 
-## Installation
+## Intsallation using source code
+1. Clone the repository
+   ```
+   git clone git@github.com:tejiriaustin/filemodtracker.git
+   ```
+
+2. Install osquery using Homebrew
+   ```
+   brew install osquery
+   ```
+
+3. Verify osquery installation:
+   ```
+   osqueryi --version
+   ```
+4. Install GCC (MinGW-w64)
+   - Download from mingw-w64.org or use MSYS2
+   - Add MinGW-w64 bin directory to PATH
+
+5. verify GCC
+    ```
+   gcc --version
+   ```
+
+6. Graphics Library
+   - Install either:
+     - OpenGL drivers (usually pre-installed on Windows)
+     - Mesa3D software renderer for systems without GPU
+
+7. Start the daemon
+    ```
+   make daemon
+   ```
+8. Start the UI
+    ```
+   make ui
+   ```
+
+
+
+## Installation Using .PKG for macOS
 
 1. Install osquery using Homebrew:
    ```

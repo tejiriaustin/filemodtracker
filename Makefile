@@ -1,32 +1,16 @@
 BINARY_NAME=filemodtracker
 
-.PHONY: all build clean run run-service run-ui test mocks
-
-all: build
-
-build:
-	go build -o $(BINARY_NAME) main.go
+.PHONY: clean daemon ui test
 
 clean:
 	go clean modcache
 	rm -f $(BINARY_NAME)
 
-run: build
-	./$(BINARY_NAME) daemon & ./$(BINARY_NAME) ui &
+daemon:
+	sudo go run main.go daemon
 
-run-service: build
-	./$(BINARY_NAME) daemon
-
-run-ui: build
-	./$(BINARY_NAME) ui
-
-rm-mocks:
-	rm -rf ./testutils/mocks.*
-
-gen-mocks:
-	mockery --all --output=testutils/mocks --case=underscore --keeptree
-
-mocks: rm-mocks gen-mocks
+ui:
+	go run main.go ui
 
 test:
 	go test -v -coverprofile=cover.out.tmp -coverpkg=./... ./...
