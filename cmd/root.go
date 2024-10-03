@@ -4,7 +4,9 @@ package cmd
 
 import (
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
@@ -33,15 +35,33 @@ var stopCmd = &cobra.Command{
 	Run:   stopDaemon,
 }
 
+func checkHealthEndpoint(url string) string {
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Sprintf("Error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		return "Running"
+	} else {
+		return fmt.Sprintf("Unexpected status: %s", resp.Status)
+	}
+}
+
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Check the status of the File Modification Tracker daemon",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.GetConfig()
-		if cfg.PidFile != "" {
-			fmt.Printf("Status: Running")
-		}
-		fmt.Printf("Status: Stopped")
+		healthURL := fmt.Sprintf("http://localhost%s/health", cfg.Port)
+
+		status := checkHealthEndpoint(healthURL)
+		fmt.Printf("Application Status: %s\n", status)
 	},
 }
 
@@ -83,7 +103,7 @@ func buildLogger() {
 	logCfg := logger.Config{
 		LogLevel:    "info",
 		DevMode:     true,
-		ServiceName: "root",
+		ServiceName: "filemodtracker",
 	}
 	log, err = logger.NewLogger(logCfg)
 	if err != nil {

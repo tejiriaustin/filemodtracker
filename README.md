@@ -25,7 +25,7 @@ This project is a File Modification Tracker implemented in Go, designed to run a
    ```
    osqueryi --version
    ```
-4. Install GCC (MinGW-w64)
+4. Install GCC (MinGW-w64) For windows or Linux Devices
    - Download from mingw-w64.org or use MSYS2
    - Add MinGW-w64 bin directory to PATH
 
@@ -34,21 +34,21 @@ This project is a File Modification Tracker implemented in Go, designed to run a
    gcc --version
    ```
 
-6. Graphics Library
+6. Graphics Library for Linux Devices
    - Install either:
      - OpenGL drivers (usually pre-installed on Windows)
      - Mesa3D software renderer for systems without GPU
 
-7. Start the daemon
+7. Install the daemon
     ```
-   make daemon
+   make install
    ```
 8. Start the UI
     ```
    make ui
    ```
 
-
+Note: Please ensure osquery is properly installed and running
 
 ## Installation Using .PKG for macOS
 

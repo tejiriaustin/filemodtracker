@@ -1,3 +1,5 @@
+// Copyright © 2024 NAME HERE tejiriaustin123@gmail.com
+
 package cmd
 
 import (
@@ -7,7 +9,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -35,11 +36,6 @@ func init() {
 func startDaemonService(cmd *cobra.Command, args []string) {
 	cfg := config.GetConfig()
 	log.Info("Starting File Modification Tracker daemon")
-
-	if err := writePIDFile(cfg.PidFile); err != nil {
-		log.Fatal("Failed to write PID file", "error", err)
-	}
-	defer removePIDFile(cfg.PidFile)
 
 	monitorClient, err := monitoring.New(cfg.OsquerySocket, monitoring.WithLogger(log))
 	if err != nil {
@@ -105,16 +101,6 @@ func startDaemonService(cmd *cobra.Command, args []string) {
 	}
 
 	log.Info("Daemon service stopped")
-}
-
-func writePIDFile(pidFile string) error {
-	return os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0644)
-}
-
-func removePIDFile(pidFile string) {
-	if err := os.Remove(pidFile); err != nil {
-		log.Error("Failed to remove PID file", "error", err)
-	}
 }
 
 func startServer(ctx context.Context, log *logger.Logger, cfg *config.Config, monitorClient monitoring.Monitor, cmdChan chan daemon.Command) error {

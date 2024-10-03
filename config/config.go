@@ -13,7 +13,6 @@ import (
 
 type Config struct {
 	ConfigPath         string
-	PidFile            string
 	Port               string        `mapstructure:"port"`
 	MonitoredDirectory string        `mapstructure:"monitored_directory"`
 	CheckFrequency     time.Duration `mapstructure:"check_frequency"`
@@ -69,7 +68,6 @@ func InitConfig(validator *validator.Validate, logger *logger.Logger) func() {
 		}
 
 		appConfig.ConfigPath = viper.ConfigFileUsed()
-		appConfig.PidFile = "/var/run/filemodtracker.pid"
 	}
 }
 

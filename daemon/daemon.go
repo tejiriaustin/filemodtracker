@@ -19,7 +19,6 @@ type (
 		cfg         *config.Config
 		fileTracker monitoring.Monitor
 		cmdChan     <-chan Command
-		pidFile     string
 	}
 	Command struct {
 		Command string

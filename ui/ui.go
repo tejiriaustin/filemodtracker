@@ -100,7 +100,7 @@ func startService(w fyne.Window, status *widget.Label) {
 		script := `do shell script "filemodtracker daemon" with administrator privileges`
 		cmd = exec.Command("osascript", "-e", script)
 	case "windows":
-		cmd = exec.Command("powershell", "-Command", "Start-Process", "filemodtracker", "daemon", "-Verb", "runAs")
+		cmd = exec.Command("powershell", "-Command", "Start-Process", "filemodtracker daemon", "-Verb", "runAs")
 	case "linux":
 		cmd = exec.Command("pkexec", "filemodtracker", "daemon")
 	default:
@@ -138,9 +138,9 @@ func stopService(w fyne.Window, status *widget.Label) {
 		script := `do shell script "filemodtracker stop" with administrator privileges`
 		cmd = exec.Command("osascript", "-e", script)
 	case "windows":
-		cmd = exec.Command("powershell", "-Command", "Start-Process", "filemodtracker", "stop", "-Verb", "runAs")
+		cmd = exec.Command("powershell", "-Command", "Start-Process", "filemodtracker stop", "-Verb", "runAs")
 	case "linux":
-		cmd = exec.Command("pkexec", "filemodtracker", "stop")
+		cmd = exec.Command("pkexec", "filemodtracker stop")
 	default:
 		dialog.ShowError(fmt.Errorf("unsupported operating system: %s", runtime.GOOS), w)
 		return
@@ -278,11 +278,11 @@ func updateButtonStates(status string) {
 	switch {
 	case strings.Contains(status, "running"):
 		stopButton.Enable()
-	case strings.Contains(status, "starting"):
+	case strings.Contains(status, "Starting"):
 		stopButton.Disable()
 	case strings.Contains(status, "stopped"):
 		stopButton.Disable()
-	case strings.Contains(status, "stopping"):
+	case strings.Contains(status, "Stopping"):
 		stopButton.Disable()
 	default:
 		// If status is unknown, enable both buttons
