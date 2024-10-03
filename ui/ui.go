@@ -52,13 +52,12 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 		table.SetColumnWidth(i, 150)
 	}
 
-	status := widget.NewLabel(fmt.Sprintf("Service Status: , %s", checkServiceStatus()))
+	status := widget.NewLabel(fmt.Sprintf(checkServiceStatus()))
 	monitorDirLabel := widget.NewLabel(fmt.Sprintf("Monitoring Directory: %s", cfg.MonitoredDirectory))
 	checkFreqLabel := widget.NewLabel(fmt.Sprintf("Check Frequency: %s", cfg.CheckFrequency))
 
 	startButton = widget.NewButtonWithIcon("Start Monitoring", theme.MediaPlayIcon(), func() {
 		go func() {
-			updateButtonStates("Starting")
 			startService(w, status)
 			periodicLogRefresh(table, cfg.Port)
 			periodicStatusCheck(status)
@@ -72,7 +71,6 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 		}()
 	})
 	stopButton.Importance = widget.DangerImportance
-	stopButton.Disable()
 
 	refreshLogsButton = widget.NewButtonWithIcon("Refresh Logs", theme.ViewRefreshIcon(), func() {
 		refreshLogs(table, cfg.Port)
@@ -272,17 +270,13 @@ func updateButtonStates(status string) {
 	status = strings.ToLower(status)
 	switch {
 	case strings.Contains(status, "Starting"):
-		refreshLogsButton.Enable()
 		startButton.Disable()
 	case strings.Contains(status, "stopped"):
 		startButton.Enable()
-		stopButton.Disable()
 	case strings.Contains(status, "Stopping"):
 		startButton.Enable()
-		stopButton.Disable()
 	default:
 		// If status is unknown, enable both buttons
 		startButton.Enable()
-		stopButton.Enable()
 	}
 }

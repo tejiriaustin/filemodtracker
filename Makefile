@@ -7,7 +7,7 @@ clean:
 	rm -f $(BINARY_NAME)
 
 daemon:
-	sudo go run -ldflags="-extldflags=-Wl,-ld_classic,-no_warn_duplicate_libraries,-v" . daemon
+	sudo savannah-assessment daemon
 
 ui:
 	savannah-assessment ui

@@ -43,11 +43,15 @@ This project is a File Modification Tracker implemented in Go, designed to run a
     ```
    make install
    ```
-8. Start the UI
+8. Start the Daemon
+    ```
+   make daemon
+   ```
+9. Start the UI
     ```
    make ui
    ```
-9. Visit the url below to verify the service is running
+10. Visit the url below to verify the service is running
    ```
    http://localhost/health
    ```

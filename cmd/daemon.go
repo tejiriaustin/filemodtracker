@@ -43,7 +43,7 @@ func startDaemonService(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	monitorClient, err := monitoring.New(cfg.OsquerySocket, monitoring.WithLogger(log))
+	monitorClient, err := monitoring.New(cfg.OsqueryConfig, monitoring.WithLogger(log))
 	if err != nil {
 		log.Fatal("Failed to create monitoring client", "error", err)
 	}
