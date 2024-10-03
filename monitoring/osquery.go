@@ -114,6 +114,7 @@ func (c *OsQueryFIMClient) createConfig() error {
 }
 
 func (c *OsQueryFIMClient) Start(ctx context.Context) error {
+	c.log.Info("Started file tracking...")
 	if err := c.createConfig(); err != nil {
 		c.log.Error("Failed to create config", "error", err)
 		return fmt.Errorf("failed to create config: %w", err)

@@ -74,7 +74,6 @@ func InitConfig(validator *validator.Validate, logger *logger.Logger) func() {
 			logger.Error("Invalid config", "error", err)
 			os.Exit(1)
 		}
-		fmt.Println(appConfig.PidFilePath)
 
 		appConfig.ConfigPath = viper.ConfigFileUsed()
 	}

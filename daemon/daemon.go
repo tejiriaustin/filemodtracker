@@ -46,6 +46,11 @@ func (d *Daemon) StartDaemon(ctx context.Context) error {
 	d.ticker = time.NewTicker(10 * time.Second)
 	defer d.ticker.Stop()
 
+	err := d.fileTracker.Start(ctx)
+	if err != nil {
+		d.logger.Info("Started file tracking...")
+		return err
+	}
 	for {
 		select {
 		case <-ctx.Done():
