@@ -58,6 +58,7 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 
 	startButton = widget.NewButtonWithIcon("Start Monitoring", theme.MediaPlayIcon(), func() {
 		go func() {
+			updateButtonStates("Starting")
 			startService(w, status)
 			periodicLogRefresh(table, cfg.Port)
 			periodicStatusCheck(status)
@@ -115,7 +116,6 @@ func startService(w fyne.Window, status *widget.Label) {
 		status.SetText("Service Status: " + errMsg)
 		dialog.ShowError(fmt.Errorf(errMsg), w)
 	} else {
-		updateButtonStates("Starting")
 		status.SetText("Service Status: Starting...")
 		go func() {
 			err = cmd.Wait()
@@ -201,7 +201,7 @@ func refreshLogs(table *widget.Table, port string) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		updateTableWithError(table, fmt.Sprintf("Error fetching logs: HTTP status %d", resp.StatusCode))
+		updateTableWithError(table, fmt.Sprintf("Service not running"))
 		return
 	}
 

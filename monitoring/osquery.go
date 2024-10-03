@@ -262,6 +262,11 @@ func (c *OsQueryFIMClient) Query(query string) ([]map[string]interface{}, error)
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
+	if c.stdin == nil {
+		c.log.Error("stdin is nil, osquery may not be properly initialized")
+		return nil, fmt.Errorf("stdin is nil, osquery may not be properly initialized")
+	}
+
 	results, err := sendCommand(c.stdin, c.stdout, query)
 	if err != nil {
 		c.log.Error("Failed to execute query", "query", query, "error", err)

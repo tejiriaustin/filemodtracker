@@ -2,7 +2,12 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +23,8 @@ type Config struct {
 	CheckFrequency     time.Duration `mapstructure:"check_frequency"`
 	OsqueryConfig      string        `mapstructure:"osquery_config"`
 	OsquerySocket      string        `mapstructure:"osquery_socket"`
+	PidFilePath        string        `mapstructure:"pid_file_path"`
+	mutex              sync.RWMutex
 }
 
 var (
@@ -47,6 +54,7 @@ func InitConfig(validator *validator.Validate, logger *logger.Logger) func() {
 		viper.SetDefault("api_endpoint", "http://localhost:80")
 		viper.SetDefault("osquery_config", "osquery_fim.conf")
 		viper.SetDefault("osquery_socket", "/var/osquery/osquery.em")
+		viper.SetDefault("pid_file_path", filepath.Join(os.TempDir(), "filemodtracker.pid"))
 
 		if err := viper.ReadInConfig(); err != nil {
 			var configFileNotFoundError viper.ConfigFileNotFoundError
@@ -66,20 +74,60 @@ func InitConfig(validator *validator.Validate, logger *logger.Logger) func() {
 			logger.Error("Invalid config", "error", err)
 			os.Exit(1)
 		}
+		fmt.Println(appConfig.PidFilePath)
 
 		appConfig.ConfigPath = viper.ConfigFileUsed()
 	}
 }
 
-func UpdateConfig(newConfig Config) error {
-	configRWMutex.Lock()
-	defer configRWMutex.Unlock()
+func (c *Config) WritePidFile(pid int) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
-	validate := validator.New()
-	if err := validate.Struct(newConfig); err != nil {
-		return err
+	if c.PidFilePath == "" {
+		c.PidFilePath = filepath.Join(os.TempDir(), "filemodtracker.pid")
 	}
 
-	appConfig = newConfig
+	if err := ioutil.WriteFile(c.PidFilePath, []byte(strconv.Itoa(pid)), 0644); err != nil {
+		return fmt.Errorf("failed to write PID file: %w", err)
+	}
+	return nil
+}
+
+func (c *Config) ReadPidFile() (int, error) {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	if c.PidFilePath == "" {
+		return 0, fmt.Errorf("PID file path not set")
+	}
+
+	content, err := ioutil.ReadFile(c.PidFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, fmt.Errorf("daemon not running")
+		}
+		return 0, fmt.Errorf("failed to read PID file: %w", err)
+	}
+
+	pid, err := strconv.Atoi(strings.TrimSpace(string(content)))
+	if err != nil {
+		return 0, fmt.Errorf("invalid PID in file: %w", err)
+	}
+	return pid, nil
+}
+
+func (c *Config) RemovePidFile() error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.PidFilePath == "" {
+		return nil // No PID file path set, nothing to remove
+	}
+
+	err := os.Remove(c.PidFilePath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove PID file: %w", err)
+	}
 	return nil
 }
