@@ -48,10 +48,9 @@ func InitConfig(validator *validator.Validate, logger *logger.Logger) func() {
 		viper.AddConfigPath("/etc/filemodtracker")
 		viper.AddConfigPath("/usr/local/etc/filemodtracker")
 
-		viper.SetDefault("port", ":80")
+		viper.SetDefault("port", ":8081")
 		viper.SetDefault("monitored_directory", "/Users/%%")
 		viper.SetDefault("check_frequency", "1m")
-		viper.SetDefault("api_endpoint", "http://localhost:80")
 		viper.SetDefault("osquery_config", "osquery_fim.conf")
 		viper.SetDefault("osquery_socket", "/var/osquery/osquery.em")
 		viper.SetDefault("pid_file_path", filepath.Join(os.TempDir(), "filemodtracker.pid"))

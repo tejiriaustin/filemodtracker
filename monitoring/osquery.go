@@ -184,7 +184,6 @@ func (c *OsQueryFIMClient) waitForStartup(ctx context.Context, readyChan chan st
 	scanner := bufio.NewScanner(c.stderr)
 	for scanner.Scan() {
 		line := scanner.Text()
-		c.log.Info("osquery output: ", line)
 
 		if strings.Contains(line, "Osquery started successfully") {
 			close(readyChan)

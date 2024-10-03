@@ -48,7 +48,7 @@ func (s *Server) Start(handler http.Handler) error {
 	go func() {
 		s.logger.Info("Starting server...")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.logger.Error("Server error: %s", err)
+			s.logger.Info("Server error", "error", err)
 			errChan <- err
 		}
 	}()

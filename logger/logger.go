@@ -42,7 +42,7 @@ func (l *Logger) Info(msg string, fields ...interface{}) {
 }
 
 func (l *Logger) Error(msg string, fields ...interface{}) {
-	l.Logger.Sugar().Errorw(msg, fields...)
+	l.Logger.Sugar().Errorf(msg, fields...)
 }
 
 func (l *Logger) Fatal(msg string, fields ...interface{}) {

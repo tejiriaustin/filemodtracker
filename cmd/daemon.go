@@ -82,7 +82,7 @@ func startDaemonService(cmd *cobra.Command, args []string) {
 	select {
 	case err := <-errChan:
 		if err != nil {
-			log.Error("Error in daemon service", "error", err)
+			log.Info("Error in daemon service", "error", err)
 		}
 	case sig := <-sigChan:
 		log.Info("Shutdown signal received", "signal", sig)
@@ -131,7 +131,7 @@ func startDaemon(ctx context.Context, log *logger.Logger, cfg *config.Config, mo
 	}
 
 	if err := d.StartDaemon(ctx); err != nil {
-		log.Error("Failed to start daemon", "error", err)
+		log.Info("Failed to start daemon", "error", err)
 		return fmt.Errorf("failed to start daemon: %v", err)
 	}
 	return nil
@@ -153,7 +153,7 @@ func stopDaemon(cmd *cobra.Command, args []string) {
 func stopUnixDaemon(cfg *config.Config, log *logger.Logger) {
 	pid, err := cfg.ReadPidFile()
 	if err != nil {
-		log.Error("Failed to read PID file", "error", err)
+		log.Info("Failed to read PID file", "error", err)
 		os.Exit(1)
 	}
 
@@ -170,11 +170,11 @@ func stopUnixDaemon(cfg *config.Config, log *logger.Logger) {
 
 	// Try SIGTERM first
 	if err := process.Signal(os.Interrupt); err != nil {
-		log.Warn("Failed to stop daemon using SIGTERM", "pid", pid, "error", err)
+		log.Info("Failed to stop daemon using SIGTERM", "pid", pid, "error", err)
 
 		// If SIGTERM fails, try SIGKILL
 		if err := process.Kill(); err != nil {
-			log.Error("Failed to stop daemon using SIGKILL", "pid", pid, "error", err)
+			log.Info("Failed to stop daemon using SIGKILL", "pid", pid, "error", err)
 			os.Exit(1)
 		}
 		log.Info("Daemon stopped using SIGKILL", "pid", pid)

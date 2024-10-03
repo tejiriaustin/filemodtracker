@@ -1,5 +1,5 @@
 api_endpoint: http://localhost:80/api/report
 check_frequency: 1m
 monitored_directory: /Users/%%
-port: :80
+port: :8081
 osquery_config: osquery_fim.conf

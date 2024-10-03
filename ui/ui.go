@@ -77,7 +77,6 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 	refreshLogsButton = widget.NewButtonWithIcon("Refresh Logs", theme.ViewRefreshIcon(), func() {
 		refreshLogs(table, cfg.Port)
 	})
-	refreshLogsButton.Disable()
 
 	infoBox := container.NewVBox(status, monitorDirLabel, checkFreqLabel)
 	buttonsBox := container.NewHBox(startButton, stopButton, refreshLogsButton)
