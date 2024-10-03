@@ -1,7 +1,8 @@
 # File Modification Tracker
 
-This project is a File Modification Tracker implemented in Go, designed to run as a background service on macOS. It tracks and records modifications to files in a specified directory, integrates system monitoring via osquery, and provides a simple UI for interaction.
+![File Modification Tracker](Screenshot 2024-10-03 at 18.56.36.png)
 
+This project is a File Modification Tracker implemented in Go, designed to run as a background service on macOS. It tracks and records modifications to files in a specified directory, integrates system monitoring via osquery, and provides a simple UI for interaction.
 
 ## Prerequisites
 
