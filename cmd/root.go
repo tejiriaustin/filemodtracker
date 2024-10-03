@@ -24,7 +24,7 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "filemodtracker",
+	Use:   "savannah-assessment",
 	Short: "File Modification Tracker",
 	Long:  `A CLI tool to track and record modifications to files in a specified directory.`,
 }
@@ -103,7 +103,7 @@ func buildLogger() {
 	logCfg := logger.Config{
 		LogLevel:    "info",
 		DevMode:     true,
-		ServiceName: "filemodtracker",
+		ServiceName: "savannah-assessment",
 	}
 	log, err = logger.NewLogger(logCfg)
 	if err != nil {

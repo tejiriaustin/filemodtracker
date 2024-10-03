@@ -144,7 +144,7 @@ func stopDaemon(cmd *cobra.Command, args []string) {
 }
 
 func stopUnixDaemon(log *logger.Logger) {
-	pkillCmd := exec.Command("pkill", "-f", "filemodtracker daemon")
+	pkillCmd := exec.Command("pkill", "-f", "savannah-assessment daemon")
 	if err := pkillCmd.Run(); err != nil {
 		log.Warn("Failed to stop daemon using pkill", "error", err)
 		stopUsingPgrep(log)
@@ -153,7 +153,7 @@ func stopUnixDaemon(log *logger.Logger) {
 }
 
 func stopUsingPgrep(log *logger.Logger) {
-	pgrepCmd := exec.Command("pgrep", "-f", "filemodtracker stop")
+	pgrepCmd := exec.Command("pgrep", "-f", "savannah-assessment stop")
 	output, err := pgrepCmd.Output()
 	if err != nil {
 		log.Error("Failed to find daemon process", "error", err)

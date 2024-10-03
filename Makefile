@@ -1,4 +1,4 @@
-BINARY_NAME=filemodtracker
+BINARY_NAME=savannah-assessment
 
 .PHONY: clean daemon ui test install
 
@@ -10,7 +10,7 @@ daemon:
 	sudo go run -ldflags="-extldflags=-Wl,-ld_classic,-no_warn_duplicate_libraries,-v" . daemon
 
 ui:
-	filemodtracker ui
+	savannah-assessment ui
 
 test:
 	go test -v -coverprofile=cover.out.tmp -coverpkg=./... ./...

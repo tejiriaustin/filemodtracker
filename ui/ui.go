@@ -98,12 +98,12 @@ func startService(w fyne.Window, status *widget.Label) {
 
 	switch runtime.GOOS {
 	case "darwin":
-		script := `do shell script "filemodtracker daemon" with administrator privileges`
+		script := `do shell script "savannah-assessment daemon" with administrator privileges`
 		cmd = exec.Command("osascript", "-e", script)
 	case "windows":
-		cmd = exec.Command("powershell", "-Command", "Start-Process", "filemodtracker daemon", "-Verb", "runAs")
+		cmd = exec.Command("powershell", "-Command", "Start-Process", "savannah-assessment daemon", "-Verb", "runAs")
 	case "linux":
-		cmd = exec.Command("pkexec", "filemodtracker", "daemon")
+		cmd = exec.Command("pkexec", "savannah-assessment", "daemon")
 	default:
 		dialog.ShowError(fmt.Errorf("unsupported operating system: %s", runtime.GOOS), w)
 		return
@@ -133,12 +133,12 @@ func stopService(w fyne.Window, status *widget.Label) {
 
 	switch runtime.GOOS {
 	case "darwin":
-		script := `do shell script "filemodtracker stop" with administrator privileges`
+		script := `do shell script "savannah-assessment stop" with administrator privileges`
 		cmd = exec.Command("osascript", "-e", script)
 	case "windows":
-		cmd = exec.Command("powershell", "-Command", "Start-Process", "filemodtracker stop", "-Verb", "runAs")
+		cmd = exec.Command("powershell", "-Command", "Start-Process", "savannah-assessment stop", "-Verb", "runAs")
 	case "linux":
-		cmd = exec.Command("pkexec", "filemodtracker stop")
+		cmd = exec.Command("pkexec", "savannah-assessment stop")
 	default:
 		dialog.ShowError(fmt.Errorf("unsupported operating system: %s", runtime.GOOS), w)
 		return
@@ -168,7 +168,7 @@ func stopService(w fyne.Window, status *widget.Label) {
 }
 
 func checkServiceStatus() string {
-	cmd := exec.Command("filemodtracker", "status")
+	cmd := exec.Command("savannah-assessment", "status")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
