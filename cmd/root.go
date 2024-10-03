@@ -61,7 +61,7 @@ var statusCmd = &cobra.Command{
 		healthURL := fmt.Sprintf("http://localhost%s/health", cfg.Port)
 
 		status := checkHealthEndpoint(healthURL)
-		fmt.Printf("Application Status: %s\n", status)
+		fmt.Printf("Service Status:  %s\n", status)
 	},
 }
 

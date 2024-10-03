@@ -70,8 +70,7 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 		}()
 	})
 	stopButton.Importance = widget.DangerImportance
-
-	updateButtonStates(checkServiceStatus())
+	stopButton.Disable()
 
 	refreshLogsButton := widget.NewButtonWithIcon("Refresh Logs", theme.ViewRefreshIcon(), func() {
 		refreshLogs(table, cfg.Port)
@@ -114,8 +113,8 @@ func startService(w fyne.Window, status *widget.Label) {
 		status.SetText("Service Status: " + errMsg)
 		dialog.ShowError(fmt.Errorf(errMsg), w)
 	} else {
-		status.SetText("Service Status: Starting...")
 		updateButtonStates("Starting")
+		status.SetText("Service Status: Starting...")
 		go func() {
 			err = cmd.Wait()
 			if err != nil {
@@ -123,9 +122,6 @@ func startService(w fyne.Window, status *widget.Label) {
 				status.SetText("Service Status: " + errMsg)
 				dialog.ShowError(fmt.Errorf(errMsg), w)
 			}
-			currentStatus := checkServiceStatus()
-			status.SetText("Service Status: " + currentStatus)
-			updateButtonStates(currentStatus)
 		}()
 	}
 }
@@ -163,8 +159,7 @@ func stopService(w fyne.Window, status *widget.Label) {
 				status.SetText("Service Status: Stopping...")
 				updateButtonStates("Stopping")
 				currentStatus := checkServiceStatus()
-				status.SetText("Service Status: " + currentStatus)
-				updateButtonStates(currentStatus)
+				status.SetText(currentStatus)
 			}
 		}()
 	}
@@ -186,7 +181,7 @@ func periodicStatusCheck(status *widget.Label) {
 	ticker := time.NewTicker(5 * time.Second)
 	for range ticker.C {
 		currentStatus := checkServiceStatus()
-		status.SetText("Service Status: " + currentStatus)
+		status.SetText(currentStatus)
 		updateButtonStates(currentStatus)
 	}
 }
@@ -276,16 +271,17 @@ func periodicLogRefresh(table *widget.Table, port string) {
 func updateButtonStates(status string) {
 	status = strings.ToLower(status)
 	switch {
-	case strings.Contains(status, "running"):
-		stopButton.Enable()
 	case strings.Contains(status, "Starting"):
-		stopButton.Disable()
+		startButton.Disable()
 	case strings.Contains(status, "stopped"):
+		startButton.Enable()
 		stopButton.Disable()
 	case strings.Contains(status, "Stopping"):
+		startButton.Enable()
 		stopButton.Disable()
 	default:
 		// If status is unknown, enable both buttons
+		startButton.Enable()
 		stopButton.Enable()
 	}
 }
