@@ -24,8 +24,9 @@ import (
 )
 
 var (
-	startButton *widget.Button
-	stopButton  *widget.Button
+	startButton       *widget.Button
+	stopButton        *widget.Button
+	refreshLogsButton *widget.Button
 )
 
 func Start(cfg *config.Config, logger *logger.Logger) {
@@ -72,9 +73,10 @@ func Start(cfg *config.Config, logger *logger.Logger) {
 	stopButton.Importance = widget.DangerImportance
 	stopButton.Disable()
 
-	refreshLogsButton := widget.NewButtonWithIcon("Refresh Logs", theme.ViewRefreshIcon(), func() {
+	refreshLogsButton = widget.NewButtonWithIcon("Refresh Logs", theme.ViewRefreshIcon(), func() {
 		refreshLogs(table, cfg.Port)
 	})
+	refreshLogsButton.Disable()
 
 	infoBox := container.NewVBox(status, monitorDirLabel, checkFreqLabel)
 	buttonsBox := container.NewHBox(startButton, stopButton, refreshLogsButton)
@@ -182,7 +184,6 @@ func periodicStatusCheck(status *widget.Label) {
 	for range ticker.C {
 		currentStatus := checkServiceStatus()
 		status.SetText(currentStatus)
-		updateButtonStates(currentStatus)
 	}
 }
 
@@ -272,6 +273,7 @@ func updateButtonStates(status string) {
 	status = strings.ToLower(status)
 	switch {
 	case strings.Contains(status, "Starting"):
+		refreshLogsButton.Enable()
 		startButton.Disable()
 	case strings.Contains(status, "stopped"):
 		startButton.Enable()
