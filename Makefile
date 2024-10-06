@@ -9,6 +9,9 @@ clean:
 daemon:
 	sudo savannah-assessment daemon
 
+configure:
+	sudo savannah-assessment configure
+
 ui:
 	savannah-assessment ui
 

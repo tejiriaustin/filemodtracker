@@ -4,6 +4,25 @@
 
 This project is a File Modification Tracker implemented in Go, designed to run as a background service on macOS. It tracks and records modifications to files in a specified directory, integrates system monitoring via osquery, and provides a simple UI for interaction.
 
+## Table of Contents
+
+1. [Prerequisites](#prerequisites)
+2. [Installation using source code](#installation-using-source-code)
+3. [Troubleshooting](#troubleshooting)
+4. [Installation Using .PKG for macOS](#installation-using-pkg-for-macos)
+5. [Configuration](#configuration)
+6. [Usage](#usage)
+   - [Starting the Service](#starting-the-service)
+   - [Using the File Modification Tracker](#using-the-file-modification-tracker)
+   - [HTTP Endpoints](#http-endpoints)
+   - [UI Interaction](#ui-interaction)
+   - [osquery Integration](#osquery-integration)
+7. [Uninstallation](#uninstallation)
+8. [Troubleshooting](#troubleshooting-1)
+9. [Contributing](#contributing)
+10. [Contact](#contact)
+
+
 ## Prerequisites
 
 - macOS (tested on macOS Mojave and later)
@@ -11,7 +30,7 @@ This project is a File Modification Tracker implemented in Go, designed to run a
 - osquery
 - Homebrew (for easy installation of dependencies)
 
-## Intsallation using source code
+## Installation using source code
 1. Clone the repository
    ```
    git clone git@github.com:tejiriaustin/filemodtracker.git
@@ -58,6 +77,20 @@ This project is a File Modification Tracker implemented in Go, designed to run a
    ```
 
 Note: Please ensure osquery is properly installed and running
+
+## TroubleShooting
+1. Run the following commands to verify your osquery configuration
+   ```
+   sudo osqueryi --database_path=/var/tmp/osquery_data/osquery.db --disable_events=false --enable_file_events=true --config_path=osquery_fim.conf --json
+   ```
+2. Then in the console that opens up, run the following
+   ```
+   select * from file_events;
+   ```
+3. Osquery should return a list of events. If not, run the following command to properly configure the file_events table
+   ```
+   make configure
+   ```
 
 ## Installation Using .PKG for macOS
 
@@ -137,7 +170,7 @@ Note: Please ensure osquery is properly installed and running
   ```
 - Retrieve logs:
   ```
-  curl http://localhost:80/logs
+  curl http://localhost:80/events
   ```
 
 ### UI Interaction

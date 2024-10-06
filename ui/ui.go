@@ -121,6 +121,7 @@ func startService(w fyne.Window, status *widget.Label) {
 				status.SetText("Service Status: " + errMsg)
 				dialog.ShowError(fmt.Errorf(errMsg), w)
 			}
+			status.SetText("Service Status: Started")
 		}()
 	}
 }
@@ -148,19 +149,9 @@ func stopService(w fyne.Window, status *widget.Label) {
 		dialog.ShowError(fmt.Errorf(errMsg), w)
 	} else {
 		status.SetText("Service Status: Stopping...")
-		go func() {
-			err = cmd.Wait()
-			if err != nil {
-				errMsg := fmt.Sprintf("Service exited with error: %v", err)
-				status.SetText("Service Status: " + errMsg)
-				dialog.ShowError(fmt.Errorf(errMsg), w)
-			} else {
-				status.SetText("Service Status: Stopping...")
-				updateButtonStates("Stopping")
-				currentStatus := checkServiceStatus()
-				status.SetText(currentStatus)
-			}
-		}()
+		updateButtonStates("Stopping")
+		currentStatus := checkServiceStatus()
+		status.SetText(currentStatus)
 	}
 }
 

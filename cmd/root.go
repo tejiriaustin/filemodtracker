@@ -14,6 +14,7 @@ import (
 
 	"github.com/tejiriaustin/savannah-assessment/config"
 	"github.com/tejiriaustin/savannah-assessment/logger"
+	"github.com/tejiriaustin/savannah-assessment/monitoring"
 )
 
 var (
@@ -99,6 +100,30 @@ var configSetCmd = &cobra.Command{
 	},
 }
 
+var ConfigureOsqueryCmd = &cobra.Command{
+	Use:   "configure",
+	Short: "Configure Osquery With FileEvents and Monitoring Directory",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.GetConfig()
+
+		monitorClient, err := monitoring.New(
+			cfg.OsqueryConfig,
+			monitoring.WithLogger(log),
+			monitoring.WithMonitorDirs([]string{cfg.MonitoredDirectory}),
+		)
+		if err != nil {
+			log.Fatal("Failed to create monitoring client", "error", err)
+		}
+		err = monitorClient.UpdateOrCreateJSONFile("/usr/local/etc/osquery/osquery.conf") // filePath is left as a magic variable because it serves no other purpose in this codebase
+		if err != nil {
+			log.Info("Failed to create config file", "error", err)
+			return
+		}
+
+		log.Info("Updated config file")
+	},
+}
+
 func buildLogger() {
 	logCfg := logger.Config{
 		LogLevel:    "info",
@@ -120,6 +145,7 @@ func init() {
 
 	rootCmd.AddCommand(stopCmd)
 	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(ConfigureOsqueryCmd)
 
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configViewCmd)

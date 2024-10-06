@@ -30,6 +30,13 @@ type (
 		log           *logger.Logger
 		maxRetries    int
 	}
+
+	Config struct {
+		Options   map[string]interface{} `json:"options,omitempty"`
+		Schedule  map[string]interface{} `json:"schedule"`
+		FilePaths map[string][]string    `json:"file_paths"`
+	}
+
 	Options func(*OsQueryFIMClient) error
 )
 
@@ -106,6 +113,7 @@ func (c *OsQueryFIMClient) createConfig() error {
 			"/tmp/%%",
 		},
 	}
+
 	jsonConfig, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
@@ -340,6 +348,80 @@ func (c *OsQueryFIMClient) Stop() error {
 	return nil
 }
 
+func (c *OsQueryFIMClient) UpdateOrCreateJSONFile(filePath string) error {
+	var config Config
+
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return fmt.Errorf("error opening file: %v", err)
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("error getting file info: %v", err)
+	}
+
+	if fileInfo.Size() > 0 {
+		decoder := json.NewDecoder(file)
+		if err := decoder.Decode(&config); err != nil {
+			return fmt.Errorf("error parsing JSON: %v", err)
+		}
+	}
+
+	// Update or add the "schedule" key with "file_events"
+	if config.Schedule == nil {
+		config.Schedule = make(map[string]interface{})
+	}
+	config.Schedule["file_events"] = map[string]interface{}{
+		"query":    "SELECT * FROM file_events;",
+		"interval": 300,
+	}
+
+	// Update or add the "file_paths" key
+	if config.FilePaths == nil {
+		config.FilePaths = make(map[string][]string)
+	}
+
+	// Preserve existing "homes" entries and add new one if not present
+	existingHomes := config.FilePaths["homes"]
+	for _, newEntry := range c.monitorDirs {
+		entryExists := false
+		for _, existingEntry := range existingHomes {
+			if existingEntry == newEntry {
+				entryExists = true
+				break
+			}
+		}
+		if !entryExists {
+			existingHomes = append(existingHomes, newEntry)
+		}
+	}
+	config.FilePaths["homes"] = existingHomes
+
+	config.FilePaths["etc"] = []string{"/etc/%%"}
+	config.FilePaths["tmp"] = []string{"/tmp/%%"}
+
+	// Seek to the beginning of the file before writing
+	if _, err := file.Seek(0, 0); err != nil {
+		return fmt.Errorf("error seeking file: %v", err)
+	}
+
+	// Truncate the file to ensure we overwrite any existing content
+	if err := file.Truncate(0); err != nil {
+		return fmt.Errorf("error truncating file: %v", err)
+	}
+	fmt.Println(config)
+	// Write the updated content to the file
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(config); err != nil {
+		return fmt.Errorf("error writing JSON to file: %v", err)
+	}
+
+	c.log.Info(fmt.Sprintf("File %s has been updated or created successfully.\n", filePath))
+	return nil
+}
 func (c *OsQueryFIMClient) Close() error {
 	c.log.Info("Closing osquery client")
 	if err := c.Stop(); err != nil {
