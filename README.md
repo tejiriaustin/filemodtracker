@@ -62,18 +62,14 @@ This project is a File Modification Tracker implemented in Go, designed to run a
 7. Install the daemon
     ```
    make install
-   ```
-8. Start the Daemon
-    ```
-   make daemon
-   ```
-9. Start the UI
+
+8. Start the UI
     ```
    make ui
    ```
-10. Visit the url below to verify the service is running
+9. Visit the url below to verify the service is running
    ```
-   http://localhost/health
+   http://localhost:8081/health
    ```
 
 Note: Please ensure osquery is properly installed and running
@@ -125,7 +121,6 @@ Note: Please ensure osquery is properly installed and running
    ```yaml
    monitored_directory: "/Users/username/Documents/filemodtest"
    check_frequency: 60  # in seconds
-   api_endpoint: "http://localhost:8000"  # or your desired endpoint
    ```
 
 3. Save and exit (Ctrl+X, Y, Enter)
@@ -162,7 +157,7 @@ Note: Please ensure osquery is properly installed and running
 
 - Health check:
   ```
-  curl http://localhost:80/health
+  curl http://localhost:8081/health
   ```
 - Send commands to the worker thread:
   ```
@@ -170,7 +165,7 @@ Note: Please ensure osquery is properly installed and running
   ```
 - Retrieve logs:
   ```
-  curl http://localhost:80/events
+  curl http://localhost:8081/events
   ```
 
 ### UI Interaction
