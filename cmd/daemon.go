@@ -187,6 +187,7 @@ func stopUnixDaemon(cfg *config.Config, log *logger.Logger) {
 		log.Info("Failed to remove PidFile", err.Error())
 		return
 	}
+	log.Info("Daemon stopped")
 }
 
 func stopWindowsDaemon(cfg *config.Config, log *logger.Logger) {

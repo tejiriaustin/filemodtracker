@@ -96,12 +96,12 @@ func startService(w fyne.Window, status *widget.Label) {
 
 	switch runtime.GOOS {
 	case "darwin":
-		script := `do shell script "savannah-assessment daemon" with administrator privileges`
+		script := `do shell script "sudo savannah-assessment daemon" with administrator privileges`
 		cmd = exec.Command("osascript", "-e", script)
 	case "windows":
-		cmd = exec.Command("powershell", "-Command", "Start-Process", "savannah-assessment daemon", "-Verb", "runAs")
+		cmd = exec.Command("powershell", "-Command", "Start-Process", "sudo savannah-assessment daemon", "-Verb", "runAs")
 	case "linux":
-		cmd = exec.Command("pkexec", "savannah-assessment", "daemon")
+		cmd = exec.Command("pkexec", "sudo savannah-assessment", "daemon")
 	default:
 		dialog.ShowError(fmt.Errorf("unsupported operating system: %s", runtime.GOOS), w)
 		return
@@ -130,12 +130,12 @@ func stopService(w fyne.Window, status *widget.Label) {
 
 	switch runtime.GOOS {
 	case "darwin":
-		script := `do shell script "savannah-assessment stop" with administrator privileges`
+		script := `do shell script "sudo savannah-assessment stop" with administrator privileges`
 		cmd = exec.Command("osascript", "-e", script)
 	case "windows":
-		cmd = exec.Command("powershell", "-Command", "Start-Process", "savannah-assessment stop", "-Verb", "runAs")
+		cmd = exec.Command("powershell", "-Command", "Start-Process", "sudo savannah-assessment stop", "-Verb", "runAs")
 	case "linux":
-		cmd = exec.Command("pkexec", "savannah-assessment stop")
+		cmd = exec.Command("pkexec", "sudo savannah-assessment stop")
 	default:
 		dialog.ShowError(fmt.Errorf("unsupported operating system: %s", runtime.GOOS), w)
 		return
@@ -192,7 +192,7 @@ func refreshLogs(table *widget.Table, port string) {
 	url := fmt.Sprintf("http://localhost%s/events", port)
 	resp, err := client.Get(url)
 	if err != nil {
-		updateTableWithError(table, fmt.Sprintf("Error fetching logs: %v", err))
+		updateTableWithError(table, fmt.Sprintf("Failed to Fetch: Service not running"))
 		return
 	}
 	defer resp.Body.Close()
