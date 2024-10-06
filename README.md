@@ -9,16 +9,14 @@ This project is a File Modification Tracker implemented in Go, designed to run a
 1. [Prerequisites](#prerequisites)
 2. [Installation using source code](#installation-using-source-code)
 3. [Troubleshooting](#troubleshooting)
-4. [Installation Using .PKG for macOS](#installation-using-pkg-for-macos)
+4. [Installation using .pkg for macOS](#installation-using-pkg-for-macos)
 5. [Configuration](#configuration)
 6. [Usage](#usage)
    - [Starting the Service](#starting-the-service)
    - [Using the File Modification Tracker](#using-the-file-modification-tracker)
    - [HTTP Endpoints](#http-endpoints)
-   - [UI Interaction](#ui-interaction)
-   - [osquery Integration](#osquery-integration)
 7. [Uninstallation](#uninstallation)
-8. [Troubleshooting](#troubleshooting-1)
+8. [Troubleshooting OsQuery](#troubleshooting-osquery)
 9. [Contributing](#contributing)
 10. [Contact](#contact)
 
@@ -88,7 +86,7 @@ Note: Please ensure osquery is properly installed and running
    make configure
    ```
 
-## Installation Using .PKG for macOS
+## Installation using .pkg for macOS
 
 1. Install osquery using Homebrew:
    ```
@@ -168,20 +166,6 @@ Note: Please ensure osquery is properly installed and running
   curl http://localhost:8081/events
   ```
 
-### UI Interaction
-
-Use the provided AppleScript to interact with the service:
-
-1. Open Script Editor and paste the provided script
-2. Run the script to start, stop, or view logs
-
-### osquery Integration
-
-Run osquery commands to get file information:
-```
-osqueryi "SELECT * FROM file WHERE path = '/Users/username/Documents/filemodtest/testfile.txt'"
-```
-
 ## Uninstallation
 
 To uninstall the service:
@@ -189,7 +173,7 @@ To uninstall the service:
 sudo /usr/local/bin/uninstall_filemodtracker.sh
 ```
 
-## Troubleshooting
+## Troubleshooting OsQuery
 
 If you encounter issues with osquery:
 
