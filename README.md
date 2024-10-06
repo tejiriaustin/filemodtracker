@@ -1,6 +1,6 @@
 # File Modification Tracker
 
-[![File Modification Tracker](https://res.cloudinary.com/backendtaskdemo/image/upload/v1727978589/profiles/Screenshot_2024-10-03_at_18.56.36_w3jgr5.png)](https://github.com/tejiriaustin)
+[![File Modification Tracker](https://res.cloudinary.com/backendtaskdemo/image/upload/v1727978589/profiles/Screenshot_2024-10-03_at_18.56.36_w3jgr5.png)](https://github.com/)
 
 This project is a File Modification Tracker implemented in Go, designed to run as a background service on macOS. It tracks and records modifications to files in a specified directory, integrates system monitoring via osquery, and provides a simple UI for interaction.
 
