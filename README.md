@@ -75,7 +75,7 @@ Note: Please ensure osquery is properly installed and running
 ## TroubleShooting
 1. Run the following commands to verify your osquery configuration
    ```
-   sudo osqueryi --database_path=/var/tmp/osquery_data/osquery.db --disable_events=false --enable_file_events=true --config_path=osquery_fim.conf --json
+   sudo osqueryi --database_path=/var/tmp/osquery_data/osquery.db --disable_events=false --enable_file_events=true --config_path=/usr/local/etc/osquery/osquery.conf --json
    ```
 2. Then in the console that opens up, run the following
    ```
@@ -159,7 +159,7 @@ Note: Please ensure osquery is properly installed and running
   ```
 - Send commands to the worker thread:
   ```
-  curl -X POST -H "Content-Type: application/json" -d '{"commands":["echo Hello", "ls -l"]}' http://localhost:80/commands
+  curl -X POST -H "Content-Type: application/json" -d '{"command":"echo Hello"}' http://localhost:8081/command
   ```
 - Retrieve logs:
   ```

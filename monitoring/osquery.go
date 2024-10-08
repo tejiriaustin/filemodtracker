@@ -215,41 +215,37 @@ func (c *OsQueryFIMClient) handleStderr(ctx context.Context) {
 		line := scanner.Text()
 		c.log.Warn("osqueryi stderr output", "message", line)
 
+		// Detect specific lock file error
 		if strings.Contains(line, "IO error: While lock file") {
-			c.log.Info("Detected lock file error. Attempting to clear lock and restart...")
+			c.log.Warn("Detected lock file error. Attempting to clear lock and restart...")
 
+			// Retry logic for restarting osquery
 			for retries < c.maxRetries {
 				if err := c.Restart(ctx); err != nil {
 					retries++
 					c.log.Warn("Failed to restart osquery", "error", err, "retry", retries)
 
-					if retries < len(backoffSchedule) {
-						backoff := backoffSchedule[retries-1]
-						c.log.Info("Waiting before next retry", "backoff", backoff)
-						select {
-						case <-time.After(backoff):
-							continue
-						case <-ctx.Done():
-							c.log.Info("Context cancelled, stopping retry attempts")
-							return
-						}
-					} else {
-						c.log.Info("Waiting before next retry", "backoff", backoffSchedule[len(backoffSchedule)-1])
-						select {
-						case <-time.After(backoffSchedule[len(backoffSchedule)-1]):
-							continue
-						case <-ctx.Done():
-							c.log.Info("Context cancelled, stopping retry attempts")
-							return
-						}
+					// Determine appropriate backoff duration
+					backoff := backoffSchedule[min(retries-1, len(backoffSchedule)-1)]
+					c.log.Debug("Waiting before next retry", "backoff", backoff)
+
+					select {
+					case <-time.After(backoff):
+						// Continue retrying after backoff
+						continue
+					case <-ctx.Done():
+						c.log.Error("Context cancelled, stopping retry attempts", "retries", retries)
+						return
 					}
 				} else {
+					// Successfully restarted, reset retries and break the loop
 					c.log.Info("Successfully restarted osquery after detecting lock file error", "retries", retries)
 					retries = 0
 					break
 				}
 			}
 
+			// If maximum retries reached, log error and exit
 			if retries == c.maxRetries {
 				c.log.Error("Failed to restart osquery after maximum retries", "maxRetries", c.maxRetries)
 				return
@@ -257,6 +253,7 @@ func (c *OsQueryFIMClient) handleStderr(ctx context.Context) {
 		}
 	}
 
+	// Handle error from the scanner itself
 	if err := scanner.Err(); err != nil {
 		c.log.Error("Error reading from stderr", "error", err)
 	}
@@ -349,6 +346,11 @@ func (c *OsQueryFIMClient) Stop() error {
 }
 
 func (c *OsQueryFIMClient) UpdateOrCreateJSONFile(filePath string) error {
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("error creating directory: %v", err)
+	}
+
 	var config Config
 
 	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
@@ -411,8 +413,7 @@ func (c *OsQueryFIMClient) UpdateOrCreateJSONFile(filePath string) error {
 	if err := file.Truncate(0); err != nil {
 		return fmt.Errorf("error truncating file: %v", err)
 	}
-	fmt.Println(config)
-	// Write the updated content to the file
+
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(config); err != nil {

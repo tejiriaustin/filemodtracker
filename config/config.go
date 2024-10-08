@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
+
 	"github.com/tejiriaustin/savannah-assessment/logger"
 )
 
@@ -49,9 +50,9 @@ func InitConfig(validator *validator.Validate, logger *logger.Logger) func() {
 		viper.AddConfigPath("/usr/local/etc/filemodtracker")
 
 		viper.SetDefault("port", ":8081")
-		viper.SetDefault("monitored_directory", "/Users/%%")
+		viper.SetDefault("monitored_directory", "/Users/%/%")
 		viper.SetDefault("check_frequency", "1m")
-		viper.SetDefault("osquery_config", "osquery_fim.conf")
+		viper.SetDefault("osquery_config", "/var/osquery/osquery.conf")
 		viper.SetDefault("osquery_socket", "/var/osquery/osquery.em")
 		viper.SetDefault("pid_file_path", filepath.Join(os.TempDir(), "filemodtracker.pid"))
 
@@ -67,11 +68,12 @@ func InitConfig(validator *validator.Validate, logger *logger.Logger) func() {
 
 		if err := viper.Unmarshal(&appConfig); err != nil {
 			logger.Error("Unable to decode config into struct", "error", err)
+			return
 		}
 
 		if err := validator.Struct(&appConfig); err != nil {
 			logger.Error("Invalid config", "error", err)
-			os.Exit(1)
+			return
 		}
 
 		appConfig.ConfigPath = viper.ConfigFileUsed()

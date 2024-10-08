@@ -52,3 +52,7 @@ func (l *Logger) Fatal(msg string, fields ...interface{}) {
 func (l *Logger) Warn(msg string, fields ...interface{}) {
 	l.Logger.Sugar().Warnw(msg, fields...)
 }
+
+func (l *Logger) Debug(fields ...interface{}) {
+	l.Logger.Sugar().Debug(fields...)
+}

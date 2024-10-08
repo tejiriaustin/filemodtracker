@@ -43,6 +43,7 @@ func checkHealthEndpoint(url string) string {
 
 	resp, err := client.Get(url)
 	if err != nil {
+		log.Error("Error getting file modification: " + err.Error())
 		return fmt.Sprintf("Error: %v", err)
 	}
 	defer resp.Body.Close()
@@ -50,7 +51,7 @@ func checkHealthEndpoint(url string) string {
 	if resp.StatusCode == http.StatusOK {
 		return "Running"
 	} else {
-		return fmt.Sprintf("Unexpected status: %s", resp.Status)
+		return fmt.Sprintf("Stopped")
 	}
 }
 
@@ -94,9 +95,9 @@ var configSetCmd = &cobra.Command{
 		viper.Set(key, value)
 		err := viper.WriteConfig()
 		if err != nil {
-			fmt.Printf("Error writing config: %v\n", err)
+			log.Error("Error writing config: " + err.Error())
 		}
-		fmt.Printf("Set %s to %s\n", key, value)
+		log.Info(fmt.Sprintf("Set %s to %s\n", key, value))
 	},
 }
 
@@ -112,11 +113,11 @@ var ConfigureOsqueryCmd = &cobra.Command{
 			monitoring.WithMonitorDirs([]string{cfg.MonitoredDirectory}),
 		)
 		if err != nil {
-			log.Fatal("Failed to create monitoring client", "error", err)
+			log.Error("Failed to create monitoring client: ", err.Error())
 		}
-		err = monitorClient.UpdateOrCreateJSONFile("/usr/local/etc/osquery/osquery.conf") // filePath is left as a magic variable because it serves no other purpose in this codebase
+		err = monitorClient.UpdateOrCreateJSONFile("/var/osquery/osquery.conf") // filePath is left as a magic variable because it serves no other purpose in this codebase
 		if err != nil {
-			log.Info("Failed to create config file", "error", err)
+			log.Error("Failed to create config file: ", err.Error())
 			return
 		}
 

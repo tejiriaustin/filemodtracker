@@ -153,8 +153,8 @@ func stopDaemon(cmd *cobra.Command, args []string) {
 func stopUnixDaemon(cfg *config.Config, log *logger.Logger) {
 	pid, err := cfg.ReadPidFile()
 	if err != nil {
-		log.Info("Failed to read PID file", "error", err)
-		os.Exit(1)
+		log.Error("Failed to read PID file: " + err.Error())
+		return
 	}
 
 	process, err := os.FindProcess(pid)
@@ -162,10 +162,10 @@ func stopUnixDaemon(cfg *config.Config, log *logger.Logger) {
 		log.Error("Failed to find process", "pid", pid, "error", err)
 		err = cfg.RemovePidFile()
 		if err != nil {
-			log.Info("Failed to remove PidFile", err.Error())
+			log.Error("Failed to remove PidFile" + err.Error())
 			return
 		}
-		os.Exit(1)
+		return
 	}
 
 	// Try SIGTERM first
@@ -175,7 +175,7 @@ func stopUnixDaemon(cfg *config.Config, log *logger.Logger) {
 		// If SIGTERM fails, try SIGKILL
 		if err := process.Kill(); err != nil {
 			log.Info("Failed to stop daemon using SIGKILL", "pid", pid, "error", err)
-			os.Exit(1)
+			return
 		}
 		log.Info("Daemon stopped using SIGKILL", "pid", pid)
 	} else {
@@ -184,7 +184,7 @@ func stopUnixDaemon(cfg *config.Config, log *logger.Logger) {
 
 	err = cfg.RemovePidFile()
 	if err != nil {
-		log.Info("Failed to remove PidFile", err.Error())
+		log.Error("Failed to remove PidFile" + err.Error())
 		return
 	}
 	log.Info("Daemon stopped")
@@ -193,21 +193,21 @@ func stopUnixDaemon(cfg *config.Config, log *logger.Logger) {
 func stopWindowsDaemon(cfg *config.Config, log *logger.Logger) {
 	pid, err := cfg.ReadPidFile()
 	if err != nil {
-		log.Error("Failed to read PID file", "error", err)
-		os.Exit(1)
+		log.Error("Failed to read PID file: " + err.Error())
+		return
 	}
 
 	cmd := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid))
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Error("Failed to stop daemon", "pid", pid, "error", err, "output", string(output))
-		os.Exit(1)
+		return
 	}
 	log.Info("Daemon stopped successfully", "pid", pid, "output", string(output))
 
 	err = cfg.RemovePidFile()
 	if err != nil {
-		log.Info("Failed to remove PidFile", err.Error())
+		log.Error("Failed to remove PidFile" + err.Error())
 		return
 	}
 }
