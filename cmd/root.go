@@ -43,7 +43,6 @@ func checkHealthEndpoint(url string) string {
 
 	resp, err := client.Get(url)
 	if err != nil {
-		log.Error("Error getting file modification: " + err.Error())
 		return fmt.Sprintf("Error: %v", err)
 	}
 	defer resp.Body.Close()

@@ -1,12 +1,13 @@
 package logger
 
 import (
+	"fmt"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 type Logger struct {
-	*zap.Logger
+	*zap.SugaredLogger
 }
 
 type Config struct {
@@ -34,25 +35,25 @@ func NewLogger(cfg Config) (*Logger, error) {
 		return nil, err
 	}
 
-	return &Logger{Logger: logger}, nil
+	return &Logger{SugaredLogger: logger.Sugar()}, nil
 }
 
 func (l *Logger) Info(msg string, fields ...interface{}) {
-	l.Logger.Sugar().Infow(msg, fields...)
+	l.SugaredLogger.Infow(fmt.Sprintf(msg, fields...))
 }
 
 func (l *Logger) Error(msg string, fields ...interface{}) {
-	l.Logger.Sugar().Errorf(msg, fields...)
+	l.SugaredLogger.Errorf(fmt.Sprintf(msg, fields...))
 }
 
 func (l *Logger) Fatal(msg string, fields ...interface{}) {
-	l.Logger.Sugar().Fatalw(msg, fields...)
+	l.SugaredLogger.Fatalw(fmt.Sprintf(msg, fields...))
 }
 
 func (l *Logger) Warn(msg string, fields ...interface{}) {
-	l.Logger.Sugar().Warnw(msg, fields...)
+	l.SugaredLogger.Warnw(fmt.Sprintf(msg, fields...))
 }
 
 func (l *Logger) Debug(fields ...interface{}) {
-	l.Logger.Sugar().Debug(fields...)
+	l.SugaredLogger.Debug(fields...)
 }

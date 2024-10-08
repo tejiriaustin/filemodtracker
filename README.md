@@ -65,7 +65,11 @@ This project is a File Modification Tracker implemented in Go, designed to run a
     ```
    make ui
    ```
-9. Visit the url below to verify the service is running
+9. Configure your osquery
+    ```
+   make configure
+   ```
+10. Visit the url below to verify the service is running
    ```
    http://localhost:8081/health
    ```
@@ -75,7 +79,7 @@ Note: Please ensure osquery is properly installed and running
 ## TroubleShooting
 1. Run the following commands to verify your osquery configuration
    ```
-   sudo osqueryi --database_path=/var/tmp/osquery_data/osquery.db --disable_events=false --enable_file_events=true --config_path=/usr/local/etc/osquery/osquery.conf --json
+   sudo osqueryi --database_path=/var/tmp/osquery_data/osquery.db --disable_events=false --enable_file_events=true --config_path=/usr/local/etc/osquery/osquery.conf --verbose --json
    ```
 2. Then in the console that opens up, run the following
    ```
