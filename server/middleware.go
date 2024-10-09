@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (s *Handler) loggerMiddleware() gin.HandlerFunc {
+func (h *Handler) loggerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
@@ -52,14 +52,14 @@ func (s *Handler) loggerMiddleware() gin.HandlerFunc {
 
 		jsonLog, err := json.Marshal(logEntry)
 		if err != nil {
-			s.logger.Error("Failed to marshal log entry: %v", err)
+			h.logger.Error("Failed to marshal log entry: %v", err)
 			return
 		}
 
-		s.logger.Info(string(jsonLog))
+		h.logger.Info(string(jsonLog))
 
 		if len(c.Errors) > 0 {
-			s.logger.Error("Request errors: %v", c.Errors)
+			h.logger.Error("Request errors: %v", c.Errors)
 		}
 	}
 }

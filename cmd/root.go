@@ -127,7 +127,7 @@ var ConfigureOsqueryCmd = &cobra.Command{
 func buildLogger() {
 	logCfg := logger.Config{
 		LogLevel:    "info",
-		DevMode:     true,
+		DevMode:     false,
 		ServiceName: "savannah-assessment",
 	}
 	log, err = logger.NewLogger(logCfg)
